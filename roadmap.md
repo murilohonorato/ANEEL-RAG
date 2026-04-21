@@ -25,30 +25,31 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
 
 ## Módulo 0 — Infraestrutura e Ambiente
 
-- [ ] **0.1 — Dependências**
+- [x] **0.1 — Dependências**
   - Arquivo `requirements.txt` consolidado com todas as bibliotecas e versões fixas
   - Dependências: `pymupdf>=1.24`, `pytesseract`, `ocrmypdf`, `pandas>=2.0`, `pyarrow`, `tiktoken`, `FlagEmbedding>=1.2`, `fastembed`, `qdrant-client>=1.9`, `anthropic>=0.25`, `ragas>=0.1`, `tqdm`, `loguru`, `pytest`
   - Instruções de instalação no README: `pip install -r requirements.txt`
 
-- [ ] **0.2 — Variáveis de ambiente**
+- [x] **0.2 — Variáveis de ambiente**
   - Arquivo `.env.example` com todas as chaves necessárias: `ANTHROPIC_API_KEY`, `QDRANT_PATH`, `DATA_DIR`
   - `.env` no `.gitignore` (já configurado)
   - Módulo `src/config.py` que carrega `.env` via `python-dotenv` e expõe constantes globais
 
-- [ ] **0.3 — Estrutura de pastas**
+- [x] **0.3 — Estrutura de pastas**
   - Garantir existência de: `data/raw/`, `data/pdfs/2016/`, `data/pdfs/2021/`, `data/pdfs/2022/`, `data/processed/`, `qdrant_db/`, `results/`, `logs/`
   - Script utilitário `src/setup_dirs.py` que cria toda a estrutura
   - Verificar que `.gitignore` exclui `data/pdfs/`, `qdrant_db/`, `data/processed/`, `*.log`, `*.pdf`
 
-- [ ] **0.4 — Logger global**
+- [x] **0.4 — Logger global**
   - Configurar `loguru` como logger padrão em `src/utils/logger.py`
   - Formato: `[{time:YYYY-MM-DD HH:mm:ss}] [{level}] {module}:{line} — {message}`
   - Rotação de logs: 10 MB por arquivo, retenção de 7 dias
   - Sink para arquivo `logs/pipeline.log` + console colorido
 
-- [ ] **0.5 — Testes de sanidade do ambiente**
+- [x] **0.5 — Testes de sanidade do ambiente**
   - `tests/test_environment.py`: verifica que todas as importações funcionam, GPU/MPS detectada, Qdrant abre em modo embarcado
   - Checklist de hardware: detectar se está em Mac M4 (MPS), Linux com CUDA, ou CPU fallback
+  - ⚠️ `test_python_version` falha pois a máquina tem Python 3.9 — instalar 3.11+ via pyenv antes de rodar o pipeline completo
 
 ---
 
@@ -56,13 +57,13 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
 
 **Objetivo:** Ler os 3 JSONs brutos (2016, 2021, 2022) e produzir um DataFrame limpo e normalizado em `data/processed/metadata.parquet`.
 
-- [ ] **1.1 — Leitura e parsing dos JSONs**
+- [x] **1.1 — Leitura e parsing dos JSONs**
   - Carregar os 3 arquivos em `data/raw/`: `biblioteca_aneel_gov_br_legislacao_2016_metadados.json`, `*_2021_*`, `*_2022_*`
   - Estrutura esperada: `{data_key: {status, registros: [{titulo, autor, ementa, assunto, situacao, pdfs: [{url, arquivo, baixado}]}]}}`
   - Função `parse_year_json(path: Path, year: int) -> list[dict]` que itera sobre todas as datas e registros
   - Extrair: `titulo`, `autor`, `ementa`, `assunto`, `situacao`, `data` (chave do JSON), lista de PDFs
 
-- [ ] **1.2 — Normalização de tipos de documento**
+- [x] **1.2 — Normalização de tipos de documento**
   - Extrair `tipo_sigla` do nome do arquivo PDF: regex `r'^([a-zA-Z]+)(\d{4})(\d+)'` sobre o campo `arquivo`
   - Mapeamento canônico de siglas:
     - `ren` → `REN` → "Resolução Normativa"
@@ -73,52 +74,42 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
     - outros → `OUTRO`
   - Extrair `numero` (int) e `ano` do arquivo para validação cruzada com o JSON
 
-- [ ] **1.3 — Normalização de número da norma**
+- [x] **1.3 — Normalização de número da norma**
   - Campo `numero_norm` como string zero-padded: `f"{numero:04d}"`
   - Campo `doc_id` canônico: `f"{tipo_sigla.lower()}{ano}{numero_norm}"` (ex: `ren20211000`)
   - Tratar variações nos nomes: remover acentos, converter para minúsculo, strip whitespace
 
-- [ ] **1.4 — Normalização de datas**
+- [x] **1.4 — Normalização de datas**
   - Campo `data_pub`: parse de strings no formato `DD/MM/YYYY`, `YYYY-MM-DD`, ou extrair do campo `data` da chave JSON
   - Converter para `datetime.date` e serializar como ISO string `YYYY-MM-DD`
   - Campos: `data_pub` (data da publicação no DOU), `ano` (int)
 
-- [ ] **1.5 — Deduplicação**
+- [x] **1.5 — Deduplicação**
   - Usar `doc_id` + `arquivo` como chave primária
   - Registros com mesmo `arquivo` em anos diferentes → manter o mais recente
   - Logar quantidade de duplicatas removidas por ano
 
-- [ ] **1.6 — Flag de situação**
+- [x] **1.6 — Flag de situação**
   - Campo `revogada` (bool): `True` se `situacao` contém palavras como "revogad", "cancelad", "substituíd"
   - Manter campo `situacao` original também
 
-- [ ] **1.7 — Enriquecimento de URLs dos PDFs**
+- [x] **1.7 — Enriquecimento de URLs dos PDFs**
   - Para cada PDF: validar que URL começa com `http` e termina em `.pdf`
   - Campo `pdf_filename` = `f"{doc_id}.pdf"` (nome canônico para disco)
   - Campo `pdf_path_expected` = `f"data/pdfs/{ano}/{pdf_filename}"`
   - Campo `pdf_baixado` (bool): verificar se arquivo existe no disco
 
-- [ ] **1.8 — Salvar metadados**
+- [x] **1.8 — Salvar metadados**
   - Output: `data/processed/metadata.parquet` com todos os campos normalizados
   - Output secundário: `data/processed/metadata.csv` para inspeção manual
-  - Output de stats: `data/processed/index_stats.json`:
-    ```json
-    {
-      "total_registros": 18688,
-      "por_tipo": {"REN": 150, "REH": 470, ...},
-      "por_ano": {"2016": 6200, "2021": 6300, "2022": 6188},
-      "pdfs_baixados": 8500,
-      "pdfs_pendentes": 18539
-    }
-    ```
+  - Output de stats: `data/processed/index_stats.json`
   - Log completo de anomalias: registros sem PDF, tipo desconhecido, data inválida
 
-- [ ] **1.9 — Testes do módulo**
-  - `tests/test_metadata.py`:
-    - `test_no_duplicate_doc_ids`: doc_ids únicos no parquet
-    - `test_tipo_sigla_known_values`: nenhum tipo além dos mapeados sem aviso
-    - `test_data_pub_format`: todas as datas em ISO format
-    - `test_doc_id_regex`: doc_id segue padrão `[a-z]+\d{4}\d+`
+- [x] **1.9 — Testes do módulo**
+  - `tests/test_metadata.py`: 18 testes, todos passando
+    - `test_no_duplicate_doc_ids`, `test_tipo_sigla_known_values`, `test_data_pub_format`, `test_doc_id_regex`
+    - + testes unitários de `strip_label`, `normalize_date`, `extract_tipo_info`, `is_revogada`, `parse_year_json`
+  - ⚠️ Dados reais têm padrão `sn` (sem número) em ~91 arquivos — mapeados como OUTRO corretamente
 
 ---
 
@@ -126,31 +117,13 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
 
 **Objetivo:** Baixar todos os PDFs referenciados nos metadados, respeitando os checkpoints de progresso já existentes (script `extract_pdfs/` já funcional para 2021).
 
-- [ ] **2.1 — Unificação dos scripts de download**
-  - Generalizar `extract_pdfs/extraction/download_pdfs_2021.py` para receber o ano como argumento: `python src/02_download_pdfs.py --year 2022`
-  - Parâmetros configuráveis via CLI: `--year`, `--delay-min` (default 3.0), `--delay-max` (default 7.0), `--timeout` (default 40), `--output-dir`
-  - Usar `metadata.parquet` como source of truth (gerado no Módulo 1)
+- [x] **2.1 — Unificação dos scripts de download**
+- [x] **2.2 — Checkpoint e retomada**
+- [x] **2.3 — Driver undetected_chromedriver**
+- [x] **2.4 — Download com espera por arquivo**
+- [x] **2.5 — Relatório de erros**
 
-- [ ] **2.2 — Checkpoint e retomada**
-  - Arquivo de progresso: `data/processed/download_progress_{ano}.json`
-  - Formato: `{"doc_id": "done" | "error:<mensagem>" | "skipped:<motivo>"}`
-  - Na retomada: pular `done` e `skipped`, tentar novamente os `error`
-  - Ao final: logar estatísticas `{done: N, errors: M, skipped: K}`
-
-- [ ] **2.3 — Driver undetected_chromedriver**
-  - Função `make_driver(output_dir: Path) -> uc.Chrome` com prefs de download automático
-  - Configurar: `download.default_directory`, `plugins.always_open_pdf_externally: True`
-  - Timeout de page load: 40 segundos
-  - Tratamento de `SessionNotCreatedException`: tentar 3 vezes com intervalo de 5s antes de abortar
-
-- [ ] **2.4 — Download com espera por arquivo**
-  - Função `wait_for_download(before: set, output_dir: Path, timeout: int) -> Optional[Path]`
-  - Polling a cada 0.5s: verificar novos `.pdf` sem `.crdownload` simultâneo
-  - Após download: `shutil.move` para nome canônico `{doc_id}.pdf` em `data/pdfs/{ano}/`
-
-- [ ] **2.5 — Relatório de erros**
-  - Output: `data/processed/download_errors_{ano}.csv` com colunas: `doc_id`, `url`, `erro`, `timestamp`
-  - PDFs que falharam 3+ vezes marcados como `skipped:max_retries`
+> ✅ **Concluído externamente** — todos os PDFs (2016, 2021, 2022) foram baixados via `extract_pdfs/` e colocados diretamente em `data/pdfs/{ano}/`. Os 3 JSONs estão em `data/raw/`. Não é necessário rodar `02_download_pdfs.py`.
 
 ---
 
@@ -704,9 +677,9 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
 
 | Módulo | Descrição | Status |
 |--------|-----------|--------|
-| 0 | Infraestrutura e Ambiente | ⬜ Pendente |
-| 1 | Consolidação de Metadados | ⬜ Pendente |
-| 2 | Download de PDFs | 🔄 Parcial (2021 concluído) |
+| 0 | Infraestrutura e Ambiente | ✅ Concluído |
+| 1 | Consolidação de Metadados | ✅ Concluído |
+| 2 | Download de PDFs | ✅ Concluído (externo) |
 | 3 | Parsing de PDFs | ⬜ Pendente |
 | 4 | Chunking Document-Aware | ⬜ Pendente |
 | 5 | Embedding e Indexação | ⬜ Pendente |
