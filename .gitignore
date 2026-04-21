@@ -1,18 +1,28 @@
-# Dados — não versionar (pesados)
+# ── Dataset — nunca versionar (arquivos pesados) ───────────────────────────────
 data/raw/
 data/pdfs/
 data/processed/
 qdrant_db/
 
-# PDFs e JSONs de dados em qualquer subpasta
+# JSONs do dataset (caso estejam fora de data/raw/)
+*metadados*.json
+biblioteca_aneel_gov_br_*.json
+
+# ── PDFs e artefatos de download ───────────────────────────────────────────────
 *.pdf
 extract_pdfs/extraction/pdfs_2016/
 extract_pdfs/extraction/pdfs_2021/
 extract_pdfs/extraction/pdfs_2022/
 extract_pdfs/extraction/index_*.json
 extract_pdfs/extraction/progress_*.json
+data/processed/download_progress_*.json
+data/processed/download_errors_*.csv
 
-# Ambiente
+# ── Outputs do pipeline (não versionar resultados locais) ─────────────────────
+results/
+logs/
+
+# ── Ambiente ───────────────────────────────────────────────────────────────────
 .env
 .venv/
 venv/
@@ -23,24 +33,24 @@ __pycache__/
 dist/
 build/
 
-# Logs e artefatos locais
+# ── Modelos baixados localmente ────────────────────────────────────────────────
+models/
+
+# ── Logs e artefatos locais ────────────────────────────────────────────────────
 *.log
 download.log
 erros_download.csv
 
-# Imagens
+# ── Imagens ────────────────────────────────────────────────────────────────────
 *.png
 *.jpg
 *.jpeg
 
-# Jupyter
+# ── Jupyter ────────────────────────────────────────────────────────────────────
 .ipynb_checkpoints/
 *.ipynb_checkpoints
 
-# IDEs
+# ── IDEs ───────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.DS_Store
-
-# Modelos baixados localmente
-models/
