@@ -1,0 +1,46 @@
+# Dados — não versionar (pesados)
+data/raw/
+data/pdfs/
+data/processed/
+qdrant_db/
+
+# PDFs e JSONs de dados em qualquer subpasta
+*.pdf
+extract_pdfs/extraction/pdfs_2016/
+extract_pdfs/extraction/pdfs_2021/
+extract_pdfs/extraction/pdfs_2022/
+extract_pdfs/extraction/index_*.json
+extract_pdfs/extraction/progress_*.json
+
+# Ambiente
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Logs e artefatos locais
+*.log
+download.log
+erros_download.csv
+
+# Imagens
+*.png
+*.jpg
+*.jpeg
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# IDEs
+.vscode/
+.idea/
+*.DS_Store
+
+# Modelos baixados localmente
+models/

@@ -1,0 +1,20 @@
+[
+  {
+    "question": "O que é microgeração distribuída segundo a legislação ANEEL?",
+    "expected_answer": "Central geradora de energia elétrica com potência instalada menor ou igual a 75 kW que utiliza fontes com base em energia hidráulica, solar fotovoltaica, biomassa, eólica, marítima ou cogeração qualificada.",
+    "relevant_doc_ids": [],
+    "notes": "Definição clássica — deve estar em resolução normativa"
+  },
+  {
+    "question": "Qual é a situação atual da REN 1000/2021?",
+    "expected_answer": "Não consta revogação expressa.",
+    "relevant_doc_ids": [],
+    "notes": "Pergunta direta de metadado — deve ser respondida pelo chunk de ementa"
+  },
+  {
+    "question": "Quais distribuidoras tiveram tarifas homologadas em 2022?",
+    "expected_answer": "",
+    "relevant_doc_ids": [],
+    "notes": "Pergunta agregada — exige busca em múltiplos REH de 2022"
+  }
+]
