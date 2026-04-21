@@ -6,11 +6,58 @@ Dataset: documentos reais da ANEEL (2016, 2021, 2022).
 Avaliação: benchmark de perguntas anotado por especialista.
 **Foco principal: qualidade do pipeline de recuperação, não o agente.**
 
+---
+
+## Setup — Primeiros Passos
+
+### 1. Clonar e instalar dependências
+```bash
+git clone https://github.com/murilohonorato/ANEEL-RAG.git
+cd ANEEL-RAG
+pip install -r requirements.txt
+```
+
+### 2. Configurar variáveis de ambiente
+Crie um arquivo `.env` na raiz (não versionar — já está no `.gitignore`):
+```
+ANTHROPIC_API_KEY=sk-ant-...
+QDRANT_PATH=qdrant_db/
+DATA_DIR=data/
+```
+
+### 3. Colocar os arquivos de dados
+Os JSONs e PDFs **não estão no repositório** (arquivos grandes). Receba-os com o grupo e coloque-os assim:
+
+```
+data/
+├── raw/
+│   ├── biblioteca_aneel_gov_br_legislacao_2016_metadados.json
+│   ├── biblioteca_aneel_gov_br_legislacao_2021_metadados.json
+│   └── biblioteca_aneel_gov_br_legislacao_2022_metadados.json
+└── pdfs/
+    ├── 2016/    ← PDFs do ano 2016
+    ├── 2021/    ← PDFs do ano 2021
+    └── 2022/    ← PDFs do ano 2022
+```
+
+### 4. Status atual dos dados
+- **Todos os PDFs já foram baixados** (2016, 2021, 2022) ✅
+- O Módulo 2 (download) está concluído — não é necessário rodar `02_download_pdfs.py`
+- O próximo passo de implementação é o **Módulo 1** (`src/01_consolidate_metadata.py`)
+
+### 5. Verificar instalação
+```bash
+python -c "import fitz, qdrant_client, FlagEmbedding, anthropic; print('OK')"
+pytest tests/ -v
+```
+
+---
+
 ## Dataset
-- 3 arquivos JSON em `data/raw/`: metadados de legislação ANEEL por ano
-- Estrutura do JSON: `{data: {status, registros: [{titulo, autor, ementa, assunto, situacao, pdfs: [{url, arquivo, baixado}]}]}}`
+- 3 arquivos JSON em `data/raw/`: metadados de legislação ANEEL por ano (nomes exatos acima)
+- Estrutura do JSON: `{data_key: {status, registros: [{titulo, autor, ementa, assunto, situacao, pdfs: [{url, arquivo, baixado}]}]}}`
 - ~18.688 registros únicos, ~27.039 referências a PDFs
-- PDFs armazenados em `data/pdfs/{ano}/{arquivo}.pdf`
+- PDFs armazenados em `data/pdfs/{ano}/` — **todos já baixados** ✅
 - Tipos de documento: DSP (despacho ~53%), REA (21%), PRT (17%), REH (2.5%), REN (0.8%)
 - **REN e REH são os mais relevantes para o benchmark** — normas de maior peso regulatório
 
@@ -105,7 +152,7 @@ ANEEL-RAG/
 │       └── index_stats.json   ← estatísticas do índice
 ├── src/
 │   ├── 01_consolidate_metadata.py   ← JSON → metadata.parquet
-│   ├── 02_download_pdfs.py          ← download com Playwright
+│   ├── 02_download_pdfs.py          ← download com undetected_chromedriver (já executado ✅)
 │   ├── 03_parse.py                  ← PDF → texto limpo
 │   ├── 04_chunk.py                  ← texto → chunks parent/child
 │   ├── 05_embed_index.py            ← chunks → Qdrant
@@ -148,6 +195,16 @@ ANEEL-RAG/
     "texto":         "REN 1000/2021 — Art. 3º\n§ 1º Considera-se...",
 }
 ```
+
+## Roadmap e Progresso
+
+O arquivo `roadmap.md` na raiz do projeto contém todos os módulos de implementação com checkboxes.
+
+**REGRA OBRIGATÓRIA:** toda vez que um módulo (ou sub-tarefa de um módulo) for implementado e testado, o checkbox correspondente no `roadmap.md` **deve ser marcado** imediatamente:
+- Sub-tarefa concluída: `- [ ]` → `- [x]`
+- Módulo inteiro concluído: marcar todas as sub-tarefas E atualizar a tabela de "Status Geral" no final do roadmap
+
+Não considere nenhum módulo finalizado sem testes passando (`pytest tests/`).
 
 ## Convenções de Código
 
