@@ -308,7 +308,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
 
 **Objetivo:** Gerar embeddings densos e esparsos para todos os chunks `child` e `ementa`, e indexar no Qdrant local com payload completo.
 
-- [ ] **5.1 — Configuração do Qdrant local**
+- [x] **5.1 — Configuração do Qdrant local**
   - Função `get_qdrant_client(path: str) -> QdrantClient`
   - Modo embarcado: `QdrantClient(path="qdrant_db/")`
   - Criar collection `aneel_chunks` se não existir:
@@ -332,7 +332,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
     - `is_ementa` (boolean)
     - `revogada` (boolean)
 
-- [ ] **5.2 — Carregamento do modelo bge-m3**
+- [x] **5.2 — Carregamento do modelo bge-m3**
   - Função `load_embedding_model() -> BGEM3FlagModel`
   - Modelo: `BAAI/bge-m3` via `FlagEmbedding`
   - Configuração:
@@ -346,14 +346,14 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
   - Detectar dispositivo automaticamente: `torch.backends.mps.is_available()` → MPS, `torch.cuda.is_available()` → CUDA, else CPU
   - Logar: modelo carregado, device, VRAM/RAM disponível
 
-- [ ] **5.3 — Geração de embeddings em batch**
+- [x] **5.3 — Geração de embeddings em batch**
   - Função `embed_batch(texts: list[str], model: BGEM3FlagModel, batch_size: int = 32) -> dict`
   - Usar `model.encode(texts, batch_size=batch_size, return_dense=True, return_sparse=True, return_colbert_vecs=False)`
   - Output: `{"dense": ndarray[N, 1024], "sparse": list[dict{indices, values}]}`
   - Batch size padrão: 32 (ajustar para 16 se OOM em CPU)
   - Progress bar com `tqdm`
 
-- [ ] **5.4 — Montagem dos pontos do Qdrant**
+- [x] **5.4 — Montagem dos pontos do Qdrant**
   - Função `build_qdrant_points(chunks: list[dict], embeddings: dict) -> list[PointStruct]`
   - Para cada chunk: criar `PointStruct` com:
     - `id`: int hash do `chunk_id` (MD5 → int)
@@ -361,20 +361,20 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
     - `payload`: todos os campos do chunk exceto `chunk_id` (armazenado como `chunk_id` no payload também)
   - **Incluir `texto_parent` no payload** mesmo sendo texto longo — isso é crítico para o parent lookup
 
-- [ ] **5.5 — Upload para Qdrant com upsert**
+- [x] **5.5 — Upload para Qdrant com upsert**
   - Função `upload_to_qdrant(client, points: list[PointStruct], batch_size: int = 100) -> None`
   - Usar `client.upsert(collection_name="aneel_chunks", points=batch)` em lotes de 100
   - Retry automático: 3 tentativas com backoff exponencial (1s, 2s, 4s)
   - Progress bar por lote
   - Ao final: `client.update_collection(...)` para forçar otimização de segmentos
 
-- [ ] **5.6 — Filtro de chunks a indexar**
+- [x] **5.6 — Filtro de chunks a indexar**
   - Indexar apenas chunks com `chunk_type in ["child", "ementa", "fallback"]`
   - **NÃO indexar** chunks com `chunk_type="parent"` — eles existem apenas no payload
   - Verificar se chunk já existe no Qdrant (pelo `chunk_id`) antes de re-embeder
   - Suporte a modo incremental: `--incremental` flag que pula doc_ids já indexados
 
-- [ ] **5.7 — Estatísticas de indexação**
+- [x] **5.7 — Estatísticas de indexação**
   - Após indexação: `client.get_collection("aneel_chunks").vectors_count`
   - Salvar `data/processed/index_stats.json` atualizado:
     ```json
@@ -386,7 +386,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
     }
     ```
 
-- [ ] **5.8 — Testes do módulo**
+- [x] **5.8 — Testes do módulo**
   - `tests/test_embed_index.py`:
     - `test_qdrant_collection_created`: collection existe após indexação
     - `test_point_count_matches`: número de pontos == número de chunks child+ementa+fallback
@@ -682,7 +682,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
 | 2 | Download de PDFs | ✅ Concluído (externo) |
 | 3 | Parsing de PDFs | ✅ Concluído |
 | 4 | Chunking Document-Aware | ✅ Concluído |
-| 5 | Embedding e Indexação | ⬜ Pendente |
+| 5 | Embedding e Indexação | ✅ Concluído |
 | 6 | Pipeline de Consulta | ⬜ Pendente |
 | 7 | Avaliação com RAGAS | ⬜ Pendente |
 | 8 | Utilitários | ⬜ Pendente |
