@@ -131,7 +131,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
 
 **Objetivo:** Extrair texto limpo de cada PDF, detectar documentos escaneados e aplicar OCR, converter tabelas para Markdown. Output: `data/processed/parsed_docs.parquet`.
 
-- [ ] **3.1 — Detecção de tipo de PDF**
+- [x] **3.1 — Detecção de tipo de PDF**
   - Função `detect_pdf_type(path: Path) -> Literal["native", "scanned", "mixed"]`
   - Critério: abrir com `fitz` (PyMuPDF), contar caracteres por página
   - `native`: média > 100 chars/página
@@ -139,20 +139,20 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
   - `mixed`: algumas páginas nativas, outras escaneadas (threshold por página)
   - Logar distribuição de tipos ao final do processamento
 
-- [ ] **3.2 — Extração de texto nativo (PyMuPDF)**
+- [x] **3.2 — Extração de texto nativo (PyMuPDF)**
   - Função `extract_text_native(path: Path) -> list[dict]`
   - Para cada página: `page.get_text("text")` com flags para preservar quebras de parágrafo
   - Resultado: lista de `{"page": N, "text": "...", "char_count": N}`
   - Limpeza básica: remover caracteres de controle, normalizar espaços múltiplos, normalizar hifenação no fim de linha (`word-\nword` → `wordword`)
 
-- [ ] **3.3 — OCR com Tesseract (PDFs escaneados)**
+- [x] **3.3 — OCR com Tesseract (PDFs escaneados)**
   - Função `extract_text_ocr(path: Path) -> list[dict]`
   - Usar `ocrmypdf` para gerar PDF com camada de texto: `ocrmypdf --language por --optimize 0 input.pdf output_ocr.pdf`
   - Extrair texto do PDF gerado com PyMuPDF
   - Alternativa rápida: `pdf2image` → `pytesseract.image_to_string(img, lang="por")`
   - Configuração Tesseract: `--psm 6` (bloco de texto uniforme), `lang=por+eng`
 
-- [ ] **3.4 — Extração de tabelas (pdfplumber)**
+- [x] **3.4 — Extração de tabelas (pdfplumber)**
   - Função `extract_tables_as_markdown(path: Path) -> list[dict]`
   - Para cada página: `pdfplumber.open(path).pages[i].extract_tables()`
   - Converter cada tabela para Markdown usando função `table_to_markdown(table: list[list]) -> str`
@@ -160,26 +160,26 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
   - Substituir a região da tabela no texto extraído pela versão Markdown
   - Prioridade: REH (resoluções homologatórias) contêm tabelas tarifárias críticas
 
-- [ ] **3.5 — Detecção de estrutura legal**
+- [x] **3.5 — Detecção de estrutura legal**
   - Função `detect_legal_structure(text: str) -> dict`
   - Detectar: presença de artigos (`Art. \d+`), parágrafos (`§ \d+`), incisos (`[IVX]+\s*—`), alíneas (`[a-z]\)`), anexos (`ANEXO`)
   - Retornar: `{"has_articles": bool, "article_count": int, "has_paragraphs": bool, ...}`
   - Usado pelo Módulo 4 para escolher estratégia de chunking
 
-- [ ] **3.6 — Limpeza de texto final**
+- [x] **3.6 — Limpeza de texto final**
   - Remover cabeçalhos e rodapés repetitivos (ex: "Diário Oficial da União", número de página)
   - Detectar linhas que aparecem em >50% das páginas → remover
   - Normalizar encoding: converter para UTF-8 puro, remover BOM
   - Normalizar aspas curvas para retas, travessões para ` — `
   - Remover `\x00` e outros caracteres nulos
 
-- [ ] **3.7 — Salvar docs parseados**
+- [x] **3.7 — Salvar docs parseados**
   - Output: `data/processed/parsed_docs.parquet` com colunas:
     - `doc_id`, `tipo_sigla`, `numero`, `ano`, `full_text`, `page_count`, `char_count`, `pdf_type`, `has_tables`, `has_articles`, `article_count`, `parse_method` ("native" | "ocr" | "mixed"), `parse_timestamp`
   - Sem limite de texto no parquet (usar `pyarrow` com `large_string` para textos longos)
   - Log de anomalias: PDFs vazios, falha de OCR, encoding incorreto
 
-- [ ] **3.8 — Testes do módulo**
+- [x] **3.8 — Testes do módulo**
   - `tests/test_parse.py`:
     - `test_native_pdf_non_empty`: PDF nativo retorna texto não vazio
     - `test_ocr_pdf_detected`: PDF escaneado detectado corretamente
@@ -193,7 +193,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
 
 **Objetivo:** Transformar cada documento parseado em três tipos de chunk (ementa, parent, child) seguindo a estratégia document-aware com prefixo contextual.
 
-- [ ] **4.1 — Chunk de Ementa (do JSON)**
+- [x] **4.1 — Chunk de Ementa (do JSON)**
   - Função `build_ementa_chunk(row: pd.Series) -> dict`
   - Input: linha do `metadata.parquet`
   - Texto do chunk:
@@ -212,7 +212,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
   - Gerado para TODOS os documentos, independente de ter PDF baixado
   - Score boost no Qdrant: campo `is_ementa=True` para filtro/boost na query
 
-- [ ] **4.2 — Detecção de artigos via regex**
+- [x] **4.2 — Detecção de artigos via regex**
   - Função `split_by_articles(text: str) -> list[dict]`
   - Regex principal: `r'(?:^|\n)\s*(Art\.?\s*\d+[°º]?\.?\s*[-—]?\s*)'` (multiline)
   - Capturar: número do artigo, texto completo até o próximo artigo
@@ -220,7 +220,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
   - Output: `[{"art_num": 1, "art_text": "Art. 1º ..."}, ...]`
   - Se `article_count == 0`: usar fallback recursivo (4.4)
 
-- [ ] **4.3 — Chunks Parent (por artigo)**
+- [x] **4.3 — Chunks Parent (por artigo)**
   - Função `build_parent_chunk(doc_row, art_num: int, art_text: str) -> dict`
   - Texto: prefixo contextual + texto completo do artigo + parágrafos/incisos
   - Tamanho: 400–800 tokens (usar `tiktoken` com modelo `cl100k_base` para contagem)
@@ -229,7 +229,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
   - Campos do payload: todos os metadados + `chunk_type="parent"`, `art_num=N`
   - **NÃO será indexado vetorialmente** — apenas armazenado no payload dos children
 
-- [ ] **4.4 — Chunks Child (subdivisão do artigo)**
+- [x] **4.4 — Chunks Child (subdivisão do artigo)**
   - Função `build_child_chunks(doc_row, parent: dict) -> list[dict]`
   - Estratégia de divisão por parágrafo:
     1. Detectar `§ Xº` → cada parágrafo vira um child
@@ -240,7 +240,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
   - Payload: todos os metadados + `chunk_type="child"`, `parent_id`, `texto_parent` (texto completo do parent)
   - Máximo de 20 children por parent — se exceder, agrupar incisos em grupos de 3
 
-- [ ] **4.5 — Fallback para documentos sem artigos**
+- [x] **4.5 — Fallback para documentos sem artigos**
   - Função `build_fallback_chunks(doc_row, full_text: str) -> list[dict]`
   - Aplicar `RecursiveCharacterTextSplitter`:
     - `chunk_size=500` tokens (parent fallback)
@@ -250,7 +250,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
   - `chunk_type="fallback"` — usar para filtragem em análises de qualidade
   - Despachos (DSP) quase sempre usam este caminho
 
-- [ ] **4.6 — Prefixo contextual universal**
+- [x] **4.6 — Prefixo contextual universal**
   - Função `add_contextual_prefix(chunk_text: str, doc_row: pd.Series, art_num: Optional[int] = None) -> str`
   - Formato do prefixo:
     ```
@@ -261,12 +261,12 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
     ```
   - Garantir que o prefixo não seja contado nos limites de token do chunk (prefixo adicional, não substitui)
 
-- [ ] **4.7 — Geração de chunk_id único**
+- [x] **4.7 — Geração de chunk_id único**
   - Função `generate_chunk_id(doc_id: str, chunk_type: str, seq: int) -> str`
   - Formato: `f"{doc_id}_{chunk_type[:1]}{seq:04d}"` (ex: `ren20211000_c0001`, `ren20211000_e0000`)
   - UUID determinístico: `hashlib.md5(f"{doc_id}_{chunk_type}_{seq}".encode()).hexdigest()[:16]`
 
-- [ ] **4.8 — Pipeline completo de chunking**
+- [x] **4.8 — Pipeline completo de chunking**
   - Função `chunk_document(metadata_row, parsed_text: str) -> list[dict]`
   - Ordem de operações:
     1. Gerar chunk de ementa (sempre)
@@ -277,7 +277,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
     6. Calcular token count final (tiktoken)
   - Output: lista de dicts com payload completo pronto para Qdrant
 
-- [ ] **4.9 — Processamento batch e salvamento**
+- [x] **4.9 — Processamento batch e salvamento**
   - Processar todos os documentos do `parsed_docs.parquet`
   - Barra de progresso com `tqdm`
   - Salvar `data/processed/chunks.parquet` com todos os chunks
@@ -291,7 +291,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
     }
     ```
 
-- [ ] **4.10 — Testes do módulo**
+- [x] **4.10 — Testes do módulo**
   - `tests/test_chunk.py` (implementar TODOs existentes):
     - `test_ementa_chunk_always_created`: todo documento gera exatamente 1 ementa
     - `test_artigo_detection`: texto com "Art. 1º ... Art. 2º" detecta 2 artigos
@@ -680,8 +680,8 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
 | 0 | Infraestrutura e Ambiente | ✅ Concluído |
 | 1 | Consolidação de Metadados | ✅ Concluído |
 | 2 | Download de PDFs | ✅ Concluído (externo) |
-| 3 | Parsing de PDFs | ⬜ Pendente |
-| 4 | Chunking Document-Aware | ⬜ Pendente |
+| 3 | Parsing de PDFs | ✅ Concluído |
+| 4 | Chunking Document-Aware | ✅ Concluído |
 | 5 | Embedding e Indexação | ⬜ Pendente |
 | 6 | Pipeline de Consulta | ⬜ Pendente |
 | 7 | Avaliação com RAGAS | ⬜ Pendente |
@@ -702,4 +702,4 @@ Módulo 7 deve ser executado após cada melhoria incremental para medir impacto.
 
 ---
 
-*Última atualização: 2026-04-21*
+*Última atualização: 2026-04-22*
