@@ -43,9 +43,15 @@ QDRANT_PATH  = "qdrant_db"
 COLLECTION   = "aneel_legislacao"
 EMBED_MODEL  = "BAAI/bge-m3"
 
-# Batch size conservador para GTX 1660 6 GB com fp16.
-# Se aparecer OOM, reduza para 8. Com VRAM >= 10 GB, pode usar 32.
-BATCH_SIZE   = 16
+# Batch size de embedding — limitado pela VRAM.
+# GTX 1660 6 GB: usa ~2.7 GB com batch=16; batch=32 usa ~3.5 GB (seguro).
+# Se aparecer OOM, reduza para 16. Com VRAM >= 10 GB, pode tentar 64.
+BATCH_SIZE    = 32
+
+# Batch size de upsert — quantos pontos são enviados ao Qdrant por chamada.
+# Valores maiores reduzem o overhead de I/O do modo local.
+# Não afeta VRAM — os pontos ficam em RAM até o flush.
+UPSERT_BATCH  = 512
 
 DENSE_DIM    = 1024   # dimensão do bge-m3
 HNSW_M       = 16
@@ -153,7 +159,8 @@ def get_or_create_collection(client, name: str, reset: bool) -> None:
     if name not in existing:
         create_collection(client, name)
     else:
-        count = client.get_collection(name).vectors_count or 0
+        info  = client.get_collection(name)
+        count = getattr(info, "points_count", None) or getattr(info, "vectors_count", None) or 0
         logger.info(f"Collection '{name}' já existe com {count:,} vetores.")
 
 
@@ -304,6 +311,7 @@ def run(
     reset: bool,
     incremental: bool,
     dry_run: bool,
+    upsert_batch: int = UPSERT_BATCH,
 ) -> None:
     # 1. Carregar chunks
     logger.info(f"Carregando chunks de {chunks_path}…")
@@ -361,8 +369,44 @@ def run(
     total      = len(records)
     n_uploaded = 0
 
-    logger.info(f"Iniciando embedding e indexação de {total:,} chunks (batch={batch_size})…")
+    logger.info(
+        f"Iniciando embedding e indexação de {total:,} chunks "
+        f"(embed_batch={batch_size}, upsert_batch={upsert_batch})…"
+    )
     start_time = time.time()
+
+    pending_points: list = []
+    n_processed   = 0
+    LOG_EVERY     = 500  # loga progresso a cada N chunks processados
+
+    def _flush(force: bool = False) -> None:
+        nonlocal n_uploaded
+        if not pending_points:
+            return
+        if not force and len(pending_points) < upsert_batch:
+            return
+        try:
+            upload_batch(client, collection, pending_points)
+            n_uploaded += len(pending_points)
+        except Exception as exc:
+            logger.error(f"Erro ao fazer upsert de {len(pending_points)} pontos: {exc}")
+        pending_points.clear()
+
+    def _log_progress() -> None:
+        if n_processed == 0:
+            return
+        elapsed   = time.time() - start_time
+        rate      = n_processed / elapsed          # chunks/s
+        remaining = total - n_processed
+        eta_s     = remaining / rate if rate > 0 else 0
+        eta_h     = int(eta_s // 3600)
+        eta_m     = int((eta_s % 3600) // 60)
+        pct       = n_processed / total * 100
+        logger.info(
+            f"Progresso: {n_processed:,}/{total:,} chunks ({pct:.1f}%) | "
+            f"{rate * 60:.0f} chunks/min | "
+            f"ETA: {eta_h}h {eta_m:02d}min"
+        )
 
     for i in tqdm(range(0, total, batch_size), desc="Indexando", unit="batch"):
         chunk_batch = records[i : i + batch_size]
@@ -374,13 +418,15 @@ def run(
             logger.error(f"Erro ao embedar batch {i}–{i+batch_size}: {exc}")
             continue
 
-        points = build_points(chunk_batch, embeddings)
+        pending_points.extend(build_points(chunk_batch, embeddings))
+        n_processed += len(chunk_batch)
+        _flush()
 
-        try:
-            upload_batch(client, collection, points)
-            n_uploaded += len(points)
-        except Exception as exc:
-            logger.error(f"Erro ao fazer upsert batch {i}–{i+batch_size}: {exc}")
+        if n_processed % LOG_EVERY < batch_size:
+            _log_progress()
+
+    _flush(force=True)  # envia o restante
+    _log_progress()     # progresso final
 
     elapsed = time.time() - start_time
     logger.info(f"Concluído: {n_uploaded:,} pontos indexados em {elapsed/60:.1f} min.")
@@ -399,7 +445,7 @@ def run(
 def _save_stats(client, collection: str, qdrant_path: str, elapsed_seconds: float = 0.0) -> None:
     """Salva data/processed/index_stats.json com métricas de indexação."""
     info = client.get_collection(collection)
-    vectors_count = info.vectors_count or 0
+    vectors_count = getattr(info, "points_count", None) or getattr(info, "vectors_count", None) or 0
 
     stats_path = Path("data/processed/index_stats.json")
 
@@ -429,7 +475,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--chunks",      default=CHUNKS_PATH,  help="Caminho do chunks.parquet")
     p.add_argument("--qdrant",      default=QDRANT_PATH,  help="Diretório do Qdrant")
     p.add_argument("--collection",  default=COLLECTION,   help="Nome da collection")
-    p.add_argument("--batch-size",  default=BATCH_SIZE,   type=int, help="Batch size (padrão: 16)")
+    p.add_argument("--batch-size",  default=BATCH_SIZE,   type=int, help="Embedding batch size (padrão: 32)")
+    p.add_argument("--upsert-batch", default=UPSERT_BATCH, type=int, help="Upsert batch size (padrão: 512)")
     p.add_argument("--reset",       action="store_true",  help="Deletar e recriar a collection")
     p.add_argument("--incremental", action="store_true",  help="Pular doc_ids já indexados")
     p.add_argument("--dry-run",     action="store_true",  help="Mostrar stats sem indexar")
@@ -443,6 +490,7 @@ if __name__ == "__main__":
         qdrant_path  = args.qdrant,
         collection   = args.collection,
         batch_size   = args.batch_size,
+        upsert_batch = args.upsert_batch,
         reset        = args.reset,
         incremental  = args.incremental,
         dry_run      = args.dry_run,
