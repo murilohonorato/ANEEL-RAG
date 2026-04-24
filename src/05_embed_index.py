@@ -359,9 +359,19 @@ def run(
         _save_stats(client, collection, qdrant_path)
         return
 
-    # 6. Carregar modelo
+    # 6. Liberar memória antes de carregar o modelo
+    # O client Qdrant local pode manter dados em RAM durante o scroll incremental.
+    # Fechar e reabrir depois garante que o modelo carrega sem pressão de memória.
+    del client
+    import gc
+    gc.collect()
+    logger.info("Memória liberada. Carregando modelo...")
+
     device = get_device()
     model  = load_model(device)
+
+    # Reabrir client após modelo carregado
+    client = get_qdrant_client(qdrant_path)
 
     # 7. Processar em batches
     records    = df_index.to_dict("records")
