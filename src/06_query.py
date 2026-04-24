@@ -50,9 +50,8 @@ from src.utils.qdrant_filters import build_filter
 from src.utils.token_counter import count_tokens, truncate_to_tokens
 
 # ── CONFIG ─────────────────────────────────────────────────────────────────────
-LLM_TEMPERATURE = 0.1
-LLM_MAX_TOKENS  = 1500
-LLM_RETRY_MAX   = 2
+from src.config import LLM_MAX_TOKENS, LLM_TEMPERATURE  # centralizados em config.py
+LLM_RETRY_MAX = 2
 
 SYSTEM_PROMPT = """Você é um especialista em legislação do setor elétrico brasileiro, \
 com amplo conhecimento sobre normas da ANEEL (Agência Nacional de Energia Elétrica).
@@ -70,7 +69,7 @@ Regras obrigatórias:
 _STOP_WORDS = re.compile(
     r'\b(a|o|as|os|de|da|do|das|dos|que|qual|quais|e|em|no|na|nos|nas|'
     r'me|diga|fale|sobre|como|quando|onde|por|para|com|se|'
-    r'resolucao|resolucao|norma|lei|decreto|portaria|despacho)\b',
+    r'resolucao|norma|lei|decreto|portaria|despacho)\b',
     re.IGNORECASE,
 )
 
@@ -521,6 +520,8 @@ def query_pipeline(
     formatted = format_context(contexts)
 
     if not formatted.strip():
+        timing["generation"] = 0.0
+        timing["total"]      = round(time.time() - t0, 3)
         return {
             "question": question,
             "answer":   "Nao encontrei fontes relevantes para responder a esta pergunta.",

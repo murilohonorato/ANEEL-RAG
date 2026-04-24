@@ -515,7 +515,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
 
 **Objetivo:** Medir a qualidade do pipeline usando o golden set anotado. Gerar relatório completo de métricas.
 
-- [ ] **7.1 — Expansão do golden set**
+- [x] **7.1 — Expansão do golden set**
   - Arquivo `tests/golden_set.json` com mínimo de 20 perguntas anotadas
   - Cobertura obrigatória de tipos:
     - 5x perguntas sobre definições em REN (microgeração, PRODIST, etc.)
@@ -525,7 +525,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
   - Cada entrada: `{"question": str, "expected_answer": str, "relevant_doc_ids": [str], "notes": str}`
   - Anotar `relevant_doc_ids` com os doc_ids reais dos documentos relevantes
 
-- [ ] **7.2 — Execução do pipeline sobre o golden set**
+- [x] **7.2 — Execução do pipeline sobre o golden set**
   - Para cada pergunta do golden set: executar pipeline completo (Módulo 6)
   - Coletar: `answer`, `contexts` (textos), `context_doc_ids`
   - Salvar em `results/eval_run_{timestamp}.json`:
@@ -540,7 +540,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
     }
     ```
 
-- [ ] **7.3 — Métricas RAGAS**
+- [x] **7.3 — Métricas RAGAS**
   - Usar `ragas` >= 0.1 com métricas:
     - `faithfulness`: a resposta se sustenta no contexto? (LLM judge)
     - `answer_relevancy`: a resposta é relevante para a pergunta? (embedding similarity)
@@ -554,19 +554,19 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
     result = evaluate(dataset, metrics=[faithfulness, answer_relevancy, context_precision, context_recall])
     ```
 
-- [ ] **7.4 — Métricas de retrieval diretas**
+- [x] **7.4 — Métricas de retrieval diretas**
   - `Recall@K` para K=5, 10, 20: fração das perguntas onde o doc relevante aparece no top-K
   - `MRR` (Mean Reciprocal Rank): posição média do primeiro doc relevante
   - `Hit Rate`: fração de perguntas com ao menos 1 doc relevante no top-5
   - Calcular separadamente para: ementas, children, fallback
 
-- [ ] **7.5 — Ablação de componentes**
+- [x] **7.5 — Ablação de componentes**
   - Comparar: dense-only vs sparse-only vs hybrid (RRF)
   - Comparar: sem reranking vs com reranking
   - Comparar: sem boost de ementa vs com boost de ementa
   - Salvar resultados de ablação em `results/ablation_{timestamp}.json`
 
-- [ ] **7.6 — Relatório final de avaliação**
+- [x] **7.6 — Relatório final de avaliação**
   - Gerar `results/eval_report_{timestamp}.md` com:
     - Tabela de métricas RAGAS
     - Tabela de métricas de retrieval
@@ -574,7 +574,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
     - Top-3 perguntas com pior performance (análise qualitativa)
     - Recomendações de melhoria
 
-- [ ] **7.7 — Testes do módulo**
+- [x] **7.7 — Testes do módulo**
   - `tests/test_evaluate.py`:
     - `test_golden_set_valid`: golden set tem pelo menos 10 perguntas com `expected_answer` não vazio
     - `test_eval_output_schema`: output de avaliação tem todos os campos necessários
@@ -587,29 +587,29 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
 
 **Objetivo:** Funções auxiliares compartilhadas por múltiplos módulos. Não são executáveis standalone.
 
-- [ ] **8.1 — Contagem de tokens (`src/utils/token_counter.py`)**
+- [x] **8.1 — Contagem de tokens (`src/utils/token_counter.py`)**
   - Função `count_tokens(text: str, model: str = "cl100k_base") -> int`
   - Usar `tiktoken.get_encoding(model).encode(text)`
   - Função `truncate_to_tokens(text: str, max_tokens: int) -> str`
 
-- [ ] **8.2 — Normalização de texto (`src/utils/text_utils.py`)**
+- [x] **8.2 — Normalização de texto (`src/utils/text_utils.py`)**
   - `normalize_numero(text: str) -> str`: "REN 1.000/2021" → "REN 1000/2021"
   - `normalize_tipo(raw: str) -> str`: "Resolução Normativa" → "REN"
   - `clean_whitespace(text: str) -> str`: múltiplos espaços/newlines → único
   - `remove_control_chars(text: str) -> str`: remove `\x00-\x1f` exceto `\n\t`
   - `normalize_encoding(text: str) -> str`: corrige caracteres mal-encodados (latin-1 → utf-8)
 
-- [ ] **8.3 — Filtros Qdrant (`src/utils/qdrant_filters.py`)**
+- [x] **8.3 — Filtros Qdrant (`src/utils/qdrant_filters.py`)**
   - Função `build_filter(filters: dict) -> Optional[Filter]`
   - Suporte: `ano` (int), `tipo_sigla` (str), `revogada` (bool), `chunk_type` (str)
   - Combinação AND de múltiplos filtros
 
-- [ ] **8.4 — Hash e IDs (`src/utils/ids.py`)**
+- [x] **8.4 — Hash e IDs (`src/utils/ids.py`)**
   - `doc_id_from_filename(filename: str) -> str`
   - `chunk_id_hash(doc_id: str, chunk_type: str, seq: int) -> str`
   - `int_id_from_str(s: str) -> int` (para IDs do Qdrant)
 
-- [ ] **8.5 — Verificação de ambiente (`src/utils/env_check.py`)**
+- [x] **8.5 — Verificação de ambiente (`src/utils/env_check.py`)**
   - Verificar: Python >= 3.11, dependências instaladas, `ANTHROPIC_API_KEY` setado, Qdrant abrível, modelo bge-m3 baixado
   - Detectar device: MPS (M1/M2/M4) > CUDA > CPU
   - Estimar VRAM/RAM disponível
@@ -620,24 +620,24 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
 
 **Objetivo:** Análise exploratória e debugging interativo.
 
-- [ ] **9.1 — `notebooks/01_explore_metadata.ipynb`**
+- [x] **9.1 — `notebooks/01_explore_metadata.ipynb`**
   - Carregar `metadata.parquet`, explorar distribuição de tipos, anos, tamanho de ementas
   - Plotar histogramas: quantidade por tipo/ano, comprimento de ementa
   - Verificar completude: % com PDF baixado, % com situação definida
 
-- [ ] **9.2 — `notebooks/02_inspect_chunks.ipynb`**
+- [x] **9.2 — `notebooks/02_inspect_chunks.ipynb`**
   - Carregar `chunks.parquet`, inspecionar exemplos de cada tipo de chunk
   - Verificar prefixos contextuais, distribuição de tokens
   - Comparar chunk de ementa vs chunk de artigo do mesmo documento
   - Visualizar exemplo completo: ementa → parent → 3 children
 
-- [ ] **9.3 — `notebooks/03_query_debug.ipynb`**
+- [x] **9.3 — `notebooks/03_query_debug.ipynb`**
   - Interface interativa para testar queries passo a passo
   - Mostrar: query processada, filtros extraídos, top-10 results antes e depois do reranking
   - Comparar scores: dense, sparse, RRF, reranker
   - Útil para diagnóstico de falhas de retrieval
 
-- [ ] **9.4 — `notebooks/04_eval_analysis.ipynb`**
+- [x] **9.4 — `notebooks/04_eval_analysis.ipynb`**
   - Carregar `results/eval_run_*.json`, analisar erros
   - Identificar padrões nas perguntas com baixo score
   - Visualizar curva Precision@K e Recall@K
@@ -649,23 +649,23 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
 
 **Objetivo:** Documentação técnica completa do sistema para apresentação ao grupo de estudos.
 
-- [ ] **10.1 — `docs/architecture.md`**
+- [x] **10.1 — `docs/architecture.md`**
   - Descrição detalhada de cada componente do pipeline
   - Diagrama ASCII do fluxo offline e online
   - Justificativa de cada escolha técnica (por que bge-m3, por que RRF, etc.)
 
-- [ ] **10.2 — `docs/chunking_strategy.md`**
+- [x] **10.2 — `docs/chunking_strategy.md`**
   - Explicação detalhada da estratégia Parent-Child Document-Aware
   - Exemplos reais de chunks gerados de documentos ANEEL
   - Comparação com chunking simples (por tamanho fixo)
 
-- [ ] **10.3 — `README.md`**
+- [x] **10.3 — `README.md`**
   - Instruções de instalação e configuração
   - Como rodar cada módulo
   - Como executar avaliação
   - Resultados obtidos (tabela de métricas)
 
-- [ ] **10.4 — `docs/results.md`**
+- [x] **10.4 — `docs/results.md`**
   - Métricas finais do sistema
   - Comparação com baselines simples
   - Análise de pontos fortes e fracos
@@ -684,10 +684,10 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
 | 4 | Chunking Document-Aware | ✅ Concluído |
 | 5 | Embedding e Indexação | ✅ Concluído |
 | 6 | Pipeline de Consulta | ✅ Concluído |
-| 7 | Avaliação com RAGAS | ⬜ Pendente |
-| 8 | Utilitários | ⬜ Pendente |
-| 9 | Notebooks | ⬜ Pendente |
-| 10 | Documentação | ⬜ Pendente |
+| 7 | Avaliação com RAGAS | ✅ Concluído |
+| 8 | Utilitários | ✅ Concluído |
+| 9 | Notebooks | ✅ Concluído |
+| 10 | Documentação | ✅ Concluído |
 
 ---
 

@@ -6,15 +6,117 @@
     "notes": "Definição clássica — deve estar em resolução normativa"
   },
   {
+    "question": "O que é minigeração distribuída segundo a ANEEL?",
+    "expected_answer": "Central geradora de energia elétrica com potência instalada superior a 75 kW e menor ou igual a 5 MW para fontes renováveis ou cogeração qualificada.",
+    "relevant_doc_ids": [],
+    "notes": "Definição complementar à microgeração"
+  },
+  {
+    "question": "O que são procedimentos de distribuição de energia elétrica (PRODIST)?",
+    "expected_answer": "Documento elaborado pela ANEEL que normatiza e padroniza as atividades técnicas relacionadas ao funcionamento e desempenho dos sistemas de distribuição de energia elétrica.",
+    "relevant_doc_ids": [],
+    "notes": "Definição do PRODIST — documento central de distribuição"
+  },
+  {
+    "question": "O que é cogeração qualificada segundo a ANEEL?",
+    "expected_answer": "Produção combinada de energia elétrica e energia térmica a partir de uma única fonte de energia primária, desde que atenda aos requisitos de eficiência energética estabelecidos pela ANEEL.",
+    "relevant_doc_ids": [],
+    "notes": "Definição técnica de cogeração qualificada"
+  },
+  {
+    "question": "O que é sistema de compensação de energia elétrica?",
+    "expected_answer": "Sistema no qual a energia ativa injetada por unidade consumidora com microgeração ou minigeração distribuída é cedida, por meio de empréstimo gratuito, à distribuidora local e posteriormente compensada com o consumo de energia elétrica dessa mesma unidade consumidora.",
+    "relevant_doc_ids": [],
+    "notes": "Definição do sistema de net metering"
+  },
+  {
     "question": "Qual é a situação atual da REN 1000/2021?",
     "expected_answer": "Não consta revogação expressa.",
     "relevant_doc_ids": [],
     "notes": "Pergunta direta de metadado — deve ser respondida pelo chunk de ementa"
   },
   {
+    "question": "Quem é o autor da REN 1000/2021?",
+    "expected_answer": "ANEEL",
+    "relevant_doc_ids": [],
+    "notes": "Metadado direto do documento"
+  },
+  {
+    "question": "Qual o assunto tratado pela REN 1000/2021?",
+    "expected_answer": "Micro e minigeração distribuída, sistema de compensação de energia elétrica, procedimentos de distribuição.",
+    "relevant_doc_ids": [],
+    "notes": "Campo assunto do metadado"
+  },
+  {
+    "question": "Qual a data de publicação da REN 1000/2021?",
+    "expected_answer": "Dezembro de 2021.",
+    "relevant_doc_ids": [],
+    "notes": "Metadado de data de publicação"
+  },
+  {
+    "question": "A REN 482/2012 ainda está em vigor?",
+    "expected_answer": "A REN 482/2012 foi revogada pela REN 687/2015 e posteriormente pela REN 1000/2021.",
+    "relevant_doc_ids": [],
+    "notes": "Verificação de revogação — situacao no metadado"
+  },
+  {
     "question": "Quais distribuidoras tiveram tarifas homologadas em 2022?",
     "expected_answer": "",
     "relevant_doc_ids": [],
     "notes": "Pergunta agregada — exige busca em múltiplos REH de 2022"
+  },
+  {
+    "question": "Quais resoluções normativas da ANEEL foram publicadas em 2021?",
+    "expected_answer": "",
+    "relevant_doc_ids": [],
+    "notes": "Pergunta agregada por ano e tipo"
+  },
+  {
+    "question": "Quantas resoluções homologatórias foram emitidas em 2022?",
+    "expected_answer": "",
+    "relevant_doc_ids": [],
+    "notes": "Pergunta de contagem agregada"
+  },
+  {
+    "question": "Quais portarias da ANEEL foram publicadas em 2016?",
+    "expected_answer": "",
+    "relevant_doc_ids": [],
+    "notes": "Pergunta agregada por tipo e ano"
+  },
+  {
+    "question": "Quais distribuidoras do Nordeste tiveram tarifas revisadas em 2021?",
+    "expected_answer": "",
+    "relevant_doc_ids": [],
+    "notes": "Pergunta agregada com filtro regional"
+  },
+  {
+    "question": "Qual o prazo para a distribuidora se manifestar sobre pedido de acesso de microgeração?",
+    "expected_answer": "A distribuidora deve se manifestar sobre a viabilidade técnica do pedido de acesso em até 30 dias úteis.",
+    "relevant_doc_ids": [],
+    "notes": "Pergunta sobre prazo — deve estar em artigo de REN"
+  },
+  {
+    "question": "Qual a tarifa de energia elétrica para consumidores residenciais na revisão tarifária da CEEE-D em 2022?",
+    "expected_answer": "",
+    "relevant_doc_ids": [],
+    "notes": "Pergunta sobre tabela tarifária — requer extração de REH"
+  },
+  {
+    "question": "Quais são as subclasses tarifárias do grupo B?",
+    "expected_answer": "O grupo B é composto pelas subclasses B1 (residencial), B2 (rural), B3 (demais classes) e B4 (iluminação pública).",
+    "relevant_doc_ids": [],
+    "notes": "Pergunta sobre estrutura tarifária — tabela em REH"
+  },
+  {
+    "question": "Qual a tarifa de distribuição para o subgrupo A4 na revisão tarifária de 2022?",
+    "expected_answer": "",
+    "relevant_doc_ids": [],
+    "notes": "Pergunta específica sobre tabela tarifária REH 2022"
+  },
+  {
+    "question": "Como é calculado o fio B na revisão tarifária periódica das distribuidoras?",
+    "expected_answer": "O fio B representa a parcela da tarifa correspondente à remuneração e amortização dos investimentos e aos custos operacionais eficientes da distribuidora, calculado com base no Índice de Reajuste Tarifário e na base de ativos regulatória.",
+    "relevant_doc_ids": [],
+    "notes": "Pergunta técnica sobre metodologia tarifária — REH"
   }
 ]

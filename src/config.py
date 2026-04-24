@@ -50,6 +50,8 @@ RRF_K              = 60
 EMENTA_BOOST       = 1.3
 RERANK_TOP_N       = 5
 CONTEXT_MAX_TOKENS = 8000
+LLM_MAX_TOKENS     = 1500
+LLM_TEMPERATURE    = 0.1
 
 # ── API ────────────────────────────────────────────────────────────────────────
 ANTHROPIC_API_KEY  = os.getenv("ANTHROPIC_API_KEY", "")

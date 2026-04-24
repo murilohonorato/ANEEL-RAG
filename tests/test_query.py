@@ -202,7 +202,7 @@ def test_format_context_respects_token_limit():
             for i in range(10)]
     contexts  = lookup_parents(hits)
     formatted = format_context(contexts)
-    assert ct(formatted) <= _mod.CONTEXT_MAX_TOKENS + 50  # tolerância de 50 tokens
+    assert ct(formatted) <= _mod.CONTEXT_MAX_TOKENS + 10  # tolerância de 10 tokens
 
 
 def test_format_context_multiple_sources():
