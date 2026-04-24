@@ -3,6 +3,11 @@ data/raw/
 data/pdfs/
 data/processed/
 qdrant_db/
+qdrant_db_1/
+qdrant_db_2/
+
+# ── Claude Code (worktrees e configurações locais) ─────────────────────────────
+.claude/
 
 # JSONs do dataset (caso estejam fora de data/raw/)
 *metadados*.json

@@ -702,4 +702,6 @@ Módulo 7 deve ser executado após cada melhoria incremental para medir impacto.
 
 ---
 
-*Última atualização: 2026-04-22*
+*Última atualização: 2026-04-24*
+
+**Nota Módulo 5:** embedding executado no Google Colab em duas etapas por limitação de memória, gerando `qdrant_db_1` (124.592 pontos) e `qdrant_db_2` (103.423 pontos). Script `src/05b_merge_qdrant.py` unificou os dois em `qdrant_db/` com **228.015 pontos** confirmados.
