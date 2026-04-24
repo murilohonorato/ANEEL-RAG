@@ -311,6 +311,7 @@ def run(
     reset: bool,
     incremental: bool,
     dry_run: bool,
+    skip_first: int = 0,
     upsert_batch: int = UPSERT_BATCH,
 ) -> None:
     # 1. Carregar chunks
@@ -336,15 +337,20 @@ def run(
         df_index = df_index[~missing_mask]
     logger.info(f"Chunks com texto válido: {len(df_index):,}")
 
+    # 4. Pular primeiros N chunks por ordem (alternativa ao --incremental sem query no Qdrant)
+    if skip_first > 0:
+        df_index = df_index.iloc[skip_first:].copy()
+        logger.info(f"--skip-first: pulando primeiros {skip_first:,} chunks. Restam: {len(df_index):,}")
+
     if dry_run:
         logger.info("[DRY-RUN] Estatísticas calculadas. Nenhum dado foi indexado.")
         return
 
-    # 4. Configurar Qdrant
+    # 5. Configurar Qdrant
     client = get_qdrant_client(qdrant_path)
     get_or_create_collection(client, collection, reset)
 
-    # 5. Modo incremental — pular doc_ids já indexados
+    # 6. Modo incremental — pular doc_ids já indexados (evitar se a collection for grande)
     if incremental and not reset:
         already_indexed = get_indexed_doc_ids(client, collection)
         before = len(df_index)
@@ -359,9 +365,7 @@ def run(
         _save_stats(client, collection, qdrant_path)
         return
 
-    # 6. Liberar memória antes de carregar o modelo
-    # O client Qdrant local pode manter dados em RAM durante o scroll incremental.
-    # Fechar e reabrir depois garante que o modelo carrega sem pressão de memória.
+    # 7. Liberar memória antes de carregar o modelo
     del client
     import gc
     gc.collect()
@@ -488,7 +492,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--batch-size",  default=BATCH_SIZE,   type=int, help="Embedding batch size (padrão: 32)")
     p.add_argument("--upsert-batch", default=UPSERT_BATCH, type=int, help="Upsert batch size (padrão: 512)")
     p.add_argument("--reset",       action="store_true",  help="Deletar e recriar a collection")
-    p.add_argument("--incremental", action="store_true",  help="Pular doc_ids já indexados")
+    p.add_argument("--incremental", action="store_true",  help="Pular doc_ids já indexados (consulta Qdrant)")
+    p.add_argument("--skip-first",  default=0, type=int,  help="Pular os primeiros N chunks por ordem (sem consultar Qdrant)")
     p.add_argument("--dry-run",     action="store_true",  help="Mostrar stats sem indexar")
     return p.parse_args()
 
@@ -501,6 +506,7 @@ if __name__ == "__main__":
         collection   = args.collection,
         batch_size   = args.batch_size,
         upsert_batch = args.upsert_batch,
+        skip_first   = args.skip_first,
         reset        = args.reset,
         incremental  = args.incremental,
         dry_run      = args.dry_run,
