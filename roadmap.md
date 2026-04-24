@@ -399,9 +399,9 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
 
 ## Módulo 6 — Pipeline de Consulta (`src/06_query.py`)
 
-**Objetivo:** Implementar o pipeline completo de resposta a perguntas: query processing → embedding → hybrid search → RRF → parent lookup → reranking → geração com Claude Sonnet.
+**Objetivo:** Implementar o pipeline completo de resposta a perguntas: query processing → embedding → hybrid search → RRF → parent lookup → reranking → geração com GPT-4o.
 
-- [ ] **6.1 — Query Processing**
+- [x] **6.1 — Query Processing**
   - Função `process_query(question: str) -> dict`
   - Extrair filtros da pergunta via regex simples:
     - Ano: `r'\b(2016|2021|2022)\b'` → `filter_ano`
@@ -410,13 +410,13 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
   - Reescrita da query: remover stop words específicas de legislação ("a resolução", "qual é o", "me diga")
   - Output: `{"original": str, "clean": str, "filters": {"ano": int, "tipo": str, "numero": int}}`
 
-- [ ] **6.2 — Embedding da query**
+- [x] **6.2 — Embedding da query**
   - Função `embed_query(query: str, model: BGEM3FlagModel) -> dict`
   - Usar `model.encode([query], return_dense=True, return_sparse=True)`
   - Output: `{"dense": list[float], "sparse": SparseVector}`
   - Cache LRU simples para queries idênticas (evitar re-embedding em avaliação)
 
-- [ ] **6.3 — Hybrid Search no Qdrant**
+- [x] **6.3 — Hybrid Search no Qdrant**
   - Função `hybrid_search(client, dense_vec, sparse_vec, filters: dict, top_k: int = 40) -> list`
   - Busca densa:
     ```python
@@ -442,14 +442,14 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
   - Construção de filtros: função `build_filter(filters: dict) -> Filter` do qdrant_client
   - Executar as duas buscas em paralelo com `asyncio` ou `ThreadPoolExecutor`
 
-- [ ] **6.4 — Fusão RRF (Reciprocal Rank Fusion)**
+- [x] **6.4 — Fusão RRF (Reciprocal Rank Fusion)**
   - Função `reciprocal_rank_fusion(dense_results, sparse_results, k: int = 60) -> list`
   - Fórmula: `score_rrf(d) = Σ 1 / (k + rank(d, list_i))`
   - Parâmetro `k=60` (padrão da literatura)
   - Boost para ementas: multiplicar score RRF por 1.3 se `is_ementa=True`
   - Retornar top-20 resultados ordenados por score RRF
 
-- [ ] **6.5 — Parent Lookup**
+- [x] **6.5 — Parent Lookup**
   - Função `lookup_parents(results: list) -> list[dict]`
   - Para cada resultado:
     - Se `chunk_type == "ementa"`: usar o próprio texto da ementa como contexto
@@ -458,7 +458,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
   - Output: lista de dicts com `texto_parent`, `doc_id`, todos os metadados, `rrf_score`
   - Máximo: top-20 contexts únicos
 
-- [ ] **6.6 — Reranking com bge-reranker-v2-m3**
+- [x] **6.6 — Reranking com bge-reranker-v2-m3**
   - Função `rerank(query: str, contexts: list[dict], top_n: int = 5) -> list[dict]`
   - Carregar modelo: `FlagReranker("BAAI/bge-reranker-v2-m3", use_fp16=True, device="mps")`
   - Criar pares: `[(query, ctx["texto_parent"]) for ctx in contexts]`
@@ -466,7 +466,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
   - Ordenar contexts por score decrescente, retornar top-5
   - Logar scores: útil para debug de qualidade
 
-- [ ] **6.7 — Formatação do contexto para o LLM**
+- [x] **6.7 — Formatação do contexto para o LLM**
   - Função `format_context(contexts: list[dict]) -> str`
   - Formato de cada contexto:
     ```
@@ -478,9 +478,9 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
   - Total máximo: 8000 tokens (usando tiktoken para medir)
   - Se exceder: truncar os contexts de menor score
 
-- [ ] **6.8 — Geração com Claude Sonnet**
-  - Função `generate_answer(question: str, contexts: str, client: anthropic.Anthropic) -> str`
-  - Modelo: `claude-sonnet-4-5` (ou o mais recente disponível)
+- [x] **6.8 — Geração com GPT-4o**
+  - Função `generate_answer(question: str, contexts: str) -> str`
+  - Modelo: `gpt-4o` (geração) / `gpt-4o-mini` (juiz RAGAS)
   - System prompt:
     ```
     Você é um especialista em legislação do setor elétrico brasileiro.
@@ -493,14 +493,14 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
   - max_tokens: 1500
   - Tratamento de erro: `anthropic.APIError` → retry 2x com backoff
 
-- [ ] **6.9 — Interface CLI de consulta**
+- [x] **6.9 — Interface CLI de consulta**
   - Script `src/06_query.py` executável standalone
   - Modo interativo: `python src/06_query.py` → loop de perguntas
   - Modo single: `python src/06_query.py --question "O que é microgeração distribuída?"`
   - Flag `--debug`: mostrar chunks recuperados, scores RRF, scores reranker
   - Flag `--no-rerank`: pular reranking (útil para comparar qualidade)
 
-- [ ] **6.10 — Testes do módulo**
+- [x] **6.10 — Testes do módulo**
   - `tests/test_query.py`:
     - `test_filter_extraction_ano`: query com "2021" extrai filtro correto
     - `test_filter_extraction_tipo`: query com "REN" extrai tipo correto
@@ -683,7 +683,7 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
 | 3 | Parsing de PDFs | ✅ Concluído |
 | 4 | Chunking Document-Aware | ✅ Concluído |
 | 5 | Embedding e Indexação | ✅ Concluído |
-| 6 | Pipeline de Consulta | ⬜ Pendente |
+| 6 | Pipeline de Consulta | ✅ Concluído |
 | 7 | Avaliação com RAGAS | ⬜ Pendente |
 | 8 | Utilitários | ⬜ Pendente |
 | 9 | Notebooks | ⬜ Pendente |

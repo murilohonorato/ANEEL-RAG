@@ -26,7 +26,8 @@ LOGS_DIR       = ROOT_DIR / "logs"
 # ── Modelos ────────────────────────────────────────────────────────────────────
 EMBEDDING_MODEL = "BAAI/bge-m3"
 RERANKER_MODEL  = "BAAI/bge-reranker-v2-m3"
-LLM_MODEL       = "claude-sonnet-4-5"
+LLM_MODEL       = "gpt-4o"           # geração de respostas
+EVAL_LLM_MODEL  = "gpt-4o-mini"      # juiz RAGAS (avaliação)
 
 # ── Chunking ───────────────────────────────────────────────────────────────────
 PARENT_MAX_TOKENS  = 800
@@ -38,7 +39,7 @@ FALLBACK_CHUNK_OVERLAP = 80
 EMENTA_PREFIX_CHARS    = 150
 
 # ── Qdrant ─────────────────────────────────────────────────────────────────────
-COLLECTION_NAME    = "aneel_chunks"
+COLLECTION_NAME    = "aneel_legislacao"
 DENSE_DIM          = 1024
 HNSW_M             = 16
 HNSW_EF_CONSTRUCT  = 200
@@ -52,6 +53,7 @@ CONTEXT_MAX_TOKENS = 8000
 
 # ── API ────────────────────────────────────────────────────────────────────────
 ANTHROPIC_API_KEY  = os.getenv("ANTHROPIC_API_KEY", "")
+OPENAI_API_KEY     = os.getenv("OPENAI_API_KEY", "")
 
 # ── Arquivos JSON brutos (nomes exatos) ────────────────────────────────────────
 JSON_FILES = {
