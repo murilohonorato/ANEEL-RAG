@@ -231,14 +231,14 @@ def test_data_pub_format():
 
 
 def test_doc_id_regex():
-    # doc_ids devem começar com letras seguidas de ano de 4 dígitos
-    # alguns documentos têm padrão 'sn' (sem número) após o ano — aceito mas deve ser OUTRO
+    # doc_ids com tipo canônico (não OUTRO) devem seguir o padrão estrito
+    # tipos_sigla=OUTRO incluem casos reais da ANEEL com nomes não-padrão
+    # (ex: norte_dsp20162634, decis%c3%a3o_judicial) — excluídos desta validação
     df = _load_real_parquet()
-    base_pattern = re.compile(r'^[a-z]+\d{4}')
-    bad = df[~df["doc_id"].str.match(base_pattern)]
-    assert len(bad) == 0, f"doc_ids fora do padrão: {bad['doc_id'].head().tolist()}"
-    # doc_ids com tipo canônico devem ter número após o ano
     canonical = df[df["tipo_sigla"] != "OUTRO"]
+    base_pattern = re.compile(r'^[a-z]+\d{4}')
+    bad = canonical[~canonical["doc_id"].str.match(base_pattern)]
+    assert len(bad) == 0, f"doc_ids fora do padrão: {bad['doc_id'].head().tolist()}"
     num_pattern = re.compile(r'^[a-z]+\d{4}\d+')
     bad_canonical = canonical[~canonical["doc_id"].str.match(num_pattern)]
     assert len(bad_canonical) == 0, (

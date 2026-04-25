@@ -20,6 +20,7 @@ Uso:
 """
 
 import argparse
+import json
 import re
 import sys
 import time
@@ -36,6 +37,7 @@ from qdrant_client.models import SparseVector
 from src.config import (
     COLLECTION_NAME,
     CONTEXT_MAX_TOKENS,
+    CRITIC_MODEL,
     EMENTA_BOOST,
     HYBRID_TOP_K,
     LLM_MODEL,
@@ -44,6 +46,7 @@ from src.config import (
     RERANKER_MODEL,
     RERANK_TOP_N,
     RRF_K,
+    VALIDATION_MAX_CYCLES,
 )
 from src.utils.logger import logger
 from src.utils.qdrant_filters import build_filter
@@ -63,6 +66,20 @@ Regras obrigatórias:
 4. Responda em português formal e objetivo.
 5. Não invente informações, datas, números ou artigos que não apareçam nas fontes."""
 
+CRITIC_SYSTEM_PROMPT = """\
+Você é um avaliador crítico de respostas de um sistema RAG jurídico.
+Analise se a resposta é fiel às fontes e responde corretamente à pergunta.
+
+Responda SOMENTE com JSON no formato: {"valid": true/false, "reason": "explicação em uma frase"}
+
+Critérios de validade (todos devem ser atendidos):
+1. A resposta está fundamentada nas fontes fornecidas (sem informações inventadas)?
+2. Se a pergunta menciona uma entidade específica (usina, empresa, pessoa), a resposta trata DESSA entidade, não de outra?
+3. A resposta não é tão genérica que poderia se aplicar a qualquer entidade similar?
+
+Exceção: se a resposta diz "Não encontrei essa informação nas fontes disponíveis", marque valid=true.\
+"""
+
 
 # ── 6.1 — Query Processing ────────────────────────────────────────────────────
 
@@ -77,6 +94,27 @@ _ANO_RE    = re.compile(r'\b(2016|2021|2022)\b')
 _TIPO_RE   = re.compile(r'\b(REN|REH|REA|DSP|PRT)\b', re.IGNORECASE)
 _NUMERO_RE = re.compile(r'\b(?:REN|REH|REA|DSP|PRT)\s*[n°]*\s*(\d+)\b', re.IGNORECASE)
 
+# Extração de entidade: usinas (PCH/EOL/etc.) e empresas (S.A./Ltda.)
+_PLANT_RE = re.compile(
+    r'\b(PCH|EOL|UHE|CGH|UFV|UTE|PCG|CGEI)\s+((?:\w+\s+){0,3}\w+)',
+    re.UNICODE | re.IGNORECASE,
+)
+_EMPRESA_RE = re.compile(
+    r'\b([A-ZÀ-Ú]\w+(?:\s+(?:[A-ZÀ-Ú]\w*|\w*[IVX]+))+?)\s+(?:S\.A\.|Ltda\.?|EIRELI|S/A)',
+    re.UNICODE,
+)
+
+
+def _extract_entity_name(question: str) -> Optional[str]:
+    """Extrai nome de usina (PCH/EOL/etc.) ou empresa (S.A./Ltda.) da pergunta."""
+    m = _PLANT_RE.search(question)
+    if m:
+        return f"{m.group(1).upper()} {m.group(2).strip()}"
+    m = _EMPRESA_RE.search(question)
+    if m:
+        return m.group(1).strip()
+    return None
+
 
 def process_query(question: str) -> dict:
     """
@@ -89,7 +127,7 @@ def process_query(question: str) -> dict:
           "filters":  {"ano": int|None, "tipo_sigla": str|None, "numero": int|None}
         }
     """
-    filters: dict = {"ano": None, "tipo_sigla": None, "numero": None}
+    filters: dict = {"ano": None, "tipo_sigla": None, "numero": None, "entity_name": None}
 
     m_ano = _ANO_RE.search(question)
     if m_ano:
@@ -102,6 +140,8 @@ def process_query(question: str) -> dict:
     m_num = _NUMERO_RE.search(question)
     if m_num:
         filters["numero"] = int(m_num.group(1))
+
+    filters["entity_name"] = _extract_entity_name(question)
 
     # limpeza da query
     clean = _STOP_WORDS.sub(" ", question)
@@ -251,6 +291,27 @@ def reciprocal_rank_fusion(
         {"id": pid, "rrf_score": score, "payload": payloads[pid]}
         for pid, score in ranked
     ]
+
+
+def boost_by_entity(rrf_results: list[dict], entity_name: Optional[str]) -> list[dict]:
+    """
+    Re-ordena resultados RRF colocando primeiro os que mencionam a entidade extraída.
+    Preserva a ordem relativa dentro de cada grupo (match / não-match).
+    """
+    if not entity_name:
+        return rrf_results
+
+    needle = entity_name.lower()
+    matched, unmatched = [], []
+    for hit in rrf_results:
+        p = hit.get("payload", {})
+        haystack = (
+            (p.get("texto") or "") + " " +
+            (p.get("ementa") or "") + " " +
+            (p.get("texto_parent") or "")
+        ).lower()
+        (matched if needle in haystack else unmatched).append(hit)
+    return matched + unmatched
 
 
 # ── 6.5 — Parent Lookup ───────────────────────────────────────────────────────
@@ -433,49 +494,75 @@ def generate_answer(question: str, context: str, debug: bool = False) -> str:
                 raise
 
 
-# ── Pipeline principal ────────────────────────────────────────────────────────
+# ── 6.9 — Validação pelo crítico ─────────────────────────────────────────────
 
-def query_pipeline(
+def critic_check(
     question: str,
-    client: Optional[QdrantClient] = None,
-    debug: bool = False,
-    use_rerank: bool = True,
+    answer: str,
+    context: str,
+    entity_name: Optional[str],
 ) -> dict:
     """
-    Executa o pipeline completo para uma pergunta.
-
-    Retorna:
-        {
-          "question":  str,
-          "answer":    str,
-          "contexts":  list[dict],
-          "filters":   dict,
-          "timing":    dict,
-        }
+    Valida a resposta usando gpt-4o-mini como crítico.
+    Retorna {"valid": bool, "reason": str}.
+    Em caso de erro de API, aceita a resposta (fail-open).
     """
-    t0     = time.time()
+    entity_hint = f"\nEntidade específica perguntada: {entity_name}" if entity_name else ""
+    user_msg = (
+        f"Pergunta: {question}{entity_hint}\n\n"
+        f"Fontes utilizadas (trecho):\n{context[:3000]}\n\n"
+        f"Resposta gerada:\n{answer}"
+    )
+    try:
+        oai = OpenAI(api_key=OPENAI_API_KEY)
+        resp = oai.chat.completions.create(
+            model=CRITIC_MODEL,
+            temperature=0.0,
+            max_tokens=150,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": CRITIC_SYSTEM_PROMPT},
+                {"role": "user",   "content": user_msg},
+            ],
+        )
+        data = json.loads(resp.choices[0].message.content)
+        return {"valid": bool(data.get("valid", True)), "reason": data.get("reason", "")}
+    except Exception as exc:
+        logger.warning(f"Crítico falhou ({exc}) — aceitando resposta por padrão")
+        return {"valid": True, "reason": "critic_error"}
+
+
+def _reformulate_query(clean_q: str, entity_name: Optional[str], reason: str) -> str:
+    """Reformula a query para re-retrieval, enfatizando a entidade específica."""
+    if entity_name:
+        return f"{clean_q} especificamente {entity_name}"
+    return clean_q
+
+
+# ── 6.10 — Passe único do pipeline (interno) ──────────────────────────────────
+
+def _pipeline_single_pass(
+    question: str,
+    search_query: str,
+    filters: dict,
+    entity_name: Optional[str],
+    client: QdrantClient,
+    debug: bool,
+    use_rerank: bool,
+) -> dict:
+    """
+    Executa um passe completo: embedding → hybrid search → RRF+boost → parent lookup
+    → reranking → geração.
+    Retorna {answer, contexts, formatted_context, timing}.
+    """
     timing: dict = {}
 
-    # 1. Query processing
-    t          = time.time()
-    processed  = process_query(question)
-    clean_q    = processed["clean"]
-    filters    = processed["filters"]
-    timing["query_processing"] = round(time.time() - t, 3)
-
-    if debug:
-        logger.debug(f"Query limpa: '{clean_q}' | Filtros: {filters}")
-
-    # 2. Qdrant client
-    if client is None:
-        client = QdrantClient(path=str(QDRANT_PATH))
-
-    # 3. Embedding
+    # Embedding
     t    = time.time()
-    vecs = embed_query(clean_q)
+    vecs = embed_query(search_query)
     timing["embedding"] = round(time.time() - t, 3)
 
-    # 4. Hybrid Search
+    # Hybrid Search
     t = time.time()
     dense_res, sparse_res = hybrid_search(client, vecs["dense"], vecs["sparse"], filters)
     timing["hybrid_search"] = round(time.time() - t, 3)
@@ -483,9 +570,10 @@ def query_pipeline(
     if debug:
         logger.debug(f"Dense hits: {len(dense_res)} | Sparse hits: {len(sparse_res)}")
 
-    # 5. RRF
+    # RRF + Entity Boost
     t           = time.time()
     rrf_results = reciprocal_rank_fusion(dense_res, sparse_res)
+    rrf_results = boost_by_entity(rrf_results, entity_name)
     timing["rrf"] = round(time.time() - t, 3)
 
     if debug:
@@ -495,12 +583,12 @@ def query_pipeline(
                 f"[{r['payload'].get('chunk_type')}] score={r['rrf_score']:.4f}"
             )
 
-    # 6. Parent Lookup
+    # Parent Lookup
     t        = time.time()
     contexts = lookup_parents(rrf_results)
     timing["parent_lookup"] = round(time.time() - t, 3)
 
-    # 7. Reranking
+    # Reranking
     if use_rerank and contexts:
         t        = time.time()
         contexts = rerank(question, contexts)
@@ -509,31 +597,112 @@ def query_pipeline(
         if debug:
             for ctx in contexts:
                 logger.debug(
-                    f"Rerank: {ctx['doc_id']} "
-                    f"score={ctx.get('rerank_score', 0):.4f}"
+                    f"Rerank: {ctx['doc_id']} score={ctx.get('rerank_score', 0):.4f}"
                 )
     else:
         contexts = contexts[:RERANK_TOP_N]
         timing["reranking"] = 0.0
 
-    # 8. Formatação + Geração
     formatted = format_context(contexts)
 
     if not formatted.strip():
         timing["generation"] = 0.0
-        timing["total"]      = round(time.time() - t0, 3)
         return {
-            "question": question,
-            "answer":   "Nao encontrei fontes relevantes para responder a esta pergunta.",
-            "contexts": [],
-            "filters":  filters,
-            "timing":   timing,
+            "answer":            "Nao encontrei fontes relevantes para responder a esta pergunta.",
+            "contexts":          [],
+            "formatted_context": "",
+            "timing":            timing,
         }
 
     t      = time.time()
     answer = generate_answer(question, formatted, debug=debug)
     timing["generation"] = round(time.time() - t, 3)
-    timing["total"]      = round(time.time() - t0, 3)
+
+    return {
+        "answer":            answer,
+        "contexts":          contexts,
+        "formatted_context": formatted,
+        "timing":            timing,
+    }
+
+
+# ── Pipeline principal ────────────────────────────────────────────────────────
+
+def query_pipeline(
+    question: str,
+    client: Optional[QdrantClient] = None,
+    debug: bool = False,
+    use_rerank: bool = True,
+) -> dict:
+    """
+    Executa o pipeline completo para uma pergunta com loop gen/validação.
+
+    Fluxo:
+        query processing → (embedding → hybrid search → RRF+entity boost
+        → parent lookup → reranking → geração) → crítico → [retry opcional]
+
+    Retorna:
+        {
+          "question":  str,
+          "answer":    str,
+          "contexts":  list[dict],
+          "filters":   dict,
+          "timing":    dict,
+          "critic":    dict | None,
+        }
+    """
+    t0 = time.time()
+
+    # 1. Query processing (inclui extração de entidade via regex)
+    t         = time.time()
+    processed = process_query(question)
+    clean_q   = processed["clean"]
+    filters   = processed["filters"]
+    entity_name = filters.get("entity_name")
+    timing: dict = {"query_processing": round(time.time() - t, 3)}
+
+    if debug:
+        logger.debug(f"Query limpa: '{clean_q}' | Filtros: {filters}")
+
+    if client is None:
+        client = QdrantClient(path=str(QDRANT_PATH))
+
+    # Primeiro passe completo
+    pass1    = _pipeline_single_pass(
+        question, clean_q, filters, entity_name, client, debug, use_rerank
+    )
+    answer   = pass1["answer"]
+    contexts = pass1["contexts"]
+    timing.update(pass1["timing"])
+
+    critic_result = None
+    is_abstention = answer.startswith("Nao encontrei")
+
+    # Validação pelo crítico (pula abstinências e ausência de contexto)
+    if not is_abstention and pass1["formatted_context"] and VALIDATION_MAX_CYCLES >= 1:
+        t = time.time()
+        critic_result = critic_check(question, answer, pass1["formatted_context"], entity_name)
+        timing["validation"] = round(time.time() - t, 3)
+
+        if debug:
+            logger.debug(f"Crítico: {critic_result}")
+
+        if not critic_result["valid"]:
+            logger.info(
+                f"Crítico rejeitou (tentativa 1): {critic_result['reason']} "
+                "— reformulando query e retentando"
+            )
+            new_q = _reformulate_query(clean_q, entity_name, critic_result["reason"])
+            pass2 = _pipeline_single_pass(
+                question, new_q, filters, entity_name, client, debug, use_rerank
+            )
+            answer   = pass2["answer"]
+            contexts = pass2["contexts"]
+            for k, v in pass2["timing"].items():
+                timing[k] = timing.get(k, 0) + v
+            critic_result = {"valid": True, "reason": "second_attempt_accepted"}
+
+    timing["total"] = round(time.time() - t0, 3)
 
     return {
         "question": question,
@@ -541,6 +710,7 @@ def query_pipeline(
         "contexts": contexts,
         "filters":  filters,
         "timing":   timing,
+        "critic":   critic_result,
     }
 
 

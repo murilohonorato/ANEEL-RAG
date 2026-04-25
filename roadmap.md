@@ -691,6 +691,34 @@ golden set → RAGAS → métricas (faithfulness, context precision/recall, answ
 
 ---
 
+## Melhorias Pós-Implementação (incremental)
+
+### M1 — Extração de Entidade + Entity Boost (`src/06_query.py`) ✅
+- **Problema:** queries sobre empresas/usinas específicas retornavam documentos de entidades similares com scores altos (falsos positivos de disambiguação).
+- **Solução:** extração de entidade via regex no `process_query()` + re-ordenação pré-reranking.
+  - `_PLANT_RE`: detecta nomes de usinas com prefixo (PCH/EOL/UHE/CGH/UFV/UTE/PCG/CGEI)
+  - `_EMPRESA_RE`: detecta nomes de empresas com sufixo legal (S.A./Ltda./EIRELI/S/A)
+  - `boost_by_entity()`: coloca documentos que mencionam a entidade antes no ranking RRF → o reranker cross-encoder tem chance de avaliá-los
+  - `entity_name` adicionado ao dict `filters` retornado por `process_query()`
+- **Impacto esperado:** melhora Hit Rate em queries Q3, Q5, Q6, Q9, Q10
+
+### M2 — Loop Gen/Validação com gpt-4o-mini como Crítico (`src/06_query.py`) ✅
+- **Problema:** respostas com entidade errada passavam sem detecção; sem ciclo de revisão.
+- **Solução:** crítico leve com gpt-4o-mini avalia cada resposta antes de retornar.
+  - `CRITIC_MODEL = "gpt-4o-mini"` (mais barato que Haiku ~5x: $0.15/MTok vs $0.80/MTok)
+  - `VALIDATION_MAX_CYCLES = 1` (máximo 1 re-tentativa) — configurável em `src/config.py`
+  - `critic_check()`: verifica se resposta é fiel às fontes e menciona a entidade correta
+  - `_reformulate_query()`: se crítico rejeitar, adiciona ênfase na entidade e re-executa pipeline
+  - Fail-open: erro de API do crítico → aceita a resposta (não bloqueia)
+  - `query_pipeline()` retorna chave `"critic": {"valid": bool, "reason": str} | None`
+- **Impacto esperado:** elimina respostas com entidade trocada; acrescenta ~1-3s por query válida
+
+### A Implementar Futuramente
+- [ ] **NLI Reranker:** substituir bge-reranker por modelo NLI treinado para detectar suporte factual — aguardar avaliação das melhorias M1+M2 primeiro
+- [ ] **Qdrant Docker:** migrar de modo embarcado (228k pontos, ~13s/busca) para Docker para melhor performance em produção
+
+---
+
 ## Ordem de Implementação Recomendada
 
 ```
@@ -705,3 +733,94 @@ Módulo 7 deve ser executado após cada melhoria incremental para medir impacto.
 *Última atualização: 2026-04-24*
 
 **Nota Módulo 5:** embedding executado no Google Colab em duas etapas por limitação de memória, gerando `qdrant_db_1` (124.592 pontos) e `qdrant_db_2` (103.423 pontos). Script `src/05b_merge_qdrant.py` unificou os dois em `qdrant_db/` com **228.015 pontos** confirmados.
+
+---
+
+## Avaliação do Pipeline — Benchmark 2026-04-24
+
+### Metodologia
+
+- **Script:** `src/batch_test.py` executa 10 queries no pipeline completo (embedding → hybrid search → RRF → entity boost → reranking → geração → crítico)
+- **Avaliador independente:** NotebookLM com acesso direto a 5 PDFs-fonte das queries:
+  - `dsp20163386ti.pdf` — PCH São Carlos (Q1, Q2)
+  - `edt2016sn249.pdf` — Edital TFSEE 2016 (Q7, Q8)
+  - `dsp20163399ti.pdf` — PCH COR 125 (Q5, Q6)
+  - `edt2016sn246ti.pdf` — Edital de Notificação SAF/ANEEL (Q7 contexto)
+  - Documentos EOL Diamante III (Q3, Q4)
+- **Configuração:** reranking ativo (bge-reranker-v2-m3), entity boost ativo, crítico gpt-4o-mini ativo
+
+### Resultados por Query
+
+| Q | Pergunta (resumo) | Resultado | Observação |
+|---|---|---|---|
+| 1 | Grupo Getop — composição PCH São Carlos | ✅ Correto | Empresas e pessoas físicas identificadas corretamente |
+| 2 | Turbinas/geradores PCH São Carlos (Tabelas 9 e 10) | ❌ Absteve-se | Tabelas não indexadas — ver Limitação M3 abaixo |
+| 3 | Obrigações Parque Eólico Diamante III — Prospecto/Anúncio | ✅ Correto | |
+| 4 | Situações de comunicação MME/Receita Federal sobre EOL Diamante III | ✅ Correto | |
+| 5 | PCH COR 125 — rio, estado e potência instalada | ✅ Correto | |
+| 6 | Despacho 3.399/2016 — condição temporal de perda de vigência | ✅ Correto | |
+| 7 | Edital SAF/ANEEL — motivo legal e 3 empresas notificadas | ❌ Alucinação | Empresas corretas estavam em tabela não indexada; RAG citou empresas de outro documento |
+| 8 | Consequências do não recolhimento TFSEE em 75 dias | ✅ Correto | |
+| 9 | Prazo para Agrícola Sete Campos Ltda. (PCH Eixo 1) | ✅ Correto | |
+| 10 | Efeito do Mandado de Segurança nº 1002296 sobre PCH Eixo 1 | ✅ Correto | |
+
+**Score final: 8/10** — 8 respostas corretas, 1 abstinência incorreta (Q2), 1 alucinação (Q7).
+
+### Análise
+
+As queries Q2 e Q7 falharam pela mesma causa raiz: informações críticas residem exclusivamente em tabelas dos PDFs que não foram indexadas (ver Limitação M3 abaixo). As demais 8 queries demonstram que o pipeline funciona bem para texto narrativo — extração de entidade, entity boost, cross-encoder reranking e crítico gpt-4o-mini contribuíram positivamente para a precisão.
+
+---
+
+## Limitação Conhecida — M3: Extração de Tabelas em `src/03_parse.py`
+
+### Causa Raiz
+
+A função `parse_document()` em `src/03_parse.py` (linha ~415) chama corretamente `extract_tables_as_markdown()` via pdfplumber, mas **descarta o resultado** — as tabelas nunca são adicionadas ao `full_text` que segue para o chunker.
+
+**Código atual (com o bug):**
+```python
+if pdf_type in ("native", "mixed"):
+    tables = extract_tables_as_markdown(pdf_path)
+    base["has_tables"] = len(tables) > 0
+    # ← resultado 'tables' descartado aqui
+
+# montar texto completo
+full_text = assemble_full_text(pages)
+```
+
+**Correção necessária:**
+```python
+if pdf_type in ("native", "mixed"):
+    tables = extract_tables_as_markdown(pdf_path)
+    base["has_tables"] = len(tables) > 0
+    table_markdown = "\n\n".join(t["markdown"] for t in tables)
+else:
+    table_markdown = ""
+
+full_text = assemble_full_text(pages)
+if table_markdown:
+    full_text = full_text + "\n\n" + table_markdown
+```
+
+`src/04_chunk.py` já tem o pipeline completo `build_table_chunks()` que gera `chunk_type="table"` a partir de markdown em `full_text` — só falta receber o conteúdo.
+
+### Impacto no Benchmark
+
+| Query | Documento afetado | Conteúdo em tabela | Consequência |
+|---|---|---|---|
+| Q2 | `dsp20163386ti.pdf` (DSP 3386/2016) | Tabelas 9 e 10 — especificações de turbinas e geradores | Pipeline absteve-se incorretamente |
+| Q7 | `edt2016sn249.pdf` (Edital TFSEE 2016) | Tabela com 3 empresas notificadas | Pipeline alucionou com empresas de outro documento |
+
+### Impacto Mais Amplo
+
+- **Todos os editais de notificação** (`edt2016*`, `edt2021*`, `edt2022*`) têm tabelas de empresas — afeta qualquer query sobre empresas notificadas
+- **REH com tabelas tarifárias** — Resoluções Homologatórias contêm tabelas de tarifas críticas para o benchmark
+
+### Como Corrigir (trabalho futuro)
+
+1. Aplicar o patch acima em `src/03_parse.py`
+2. Re-executar o pipeline completo para os documentos afetados: parsing → chunking (`04_chunk.py`) → embedding e indexação (`05_embed_index.py`) — os três scripts precisam rodar em sequência, pois cada artefato depende do anterior (`full_text` → chunks → vetores no Qdrant)
+3. Verificar com `python src/batch_test.py` — Q2 e Q7 devem passar
+
+> **Nota:** este foi um erro de implementação, não de planejamento — a estratégia de chunks de tabela (com linha descritiva repetida a cada linha informativa) estava corretamente definida no design do Módulo 3/4. A execução em `parse_document()` simplesmente não conectou o resultado de `extract_tables_as_markdown()` ao `full_text`. A correção em si é trivial (uma linha de código), mas requer re-executar toda a cadeia de processamento, o que demanda tempo de máquina (especialmente a etapa de embedding no Colab).

@@ -153,8 +153,7 @@ class TestQdrantIndex:
     def test_point_count_positive(self, qdrant_client):
         if not _collection_exists(qdrant_client):
             pytest.skip("Collection não existe.")
-        info = qdrant_client.get_collection(COLLECTION)
-        count = info.vectors_count or 0
+        count = qdrant_client.count(COLLECTION).count
         assert count > 0, "Índice está vazio."
 
     def test_dense_vector_dimension(self, qdrant_client):

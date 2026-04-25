@@ -33,7 +33,7 @@ def test_config_loads():
     from src.config import ROOT_DIR, DATA_DIR, EMBEDDING_MODEL, COLLECTION_NAME
     assert ROOT_DIR.exists()
     assert EMBEDDING_MODEL == "BAAI/bge-m3"
-    assert COLLECTION_NAME == "aneel_chunks"
+    assert COLLECTION_NAME == "aneel_legislacao"
 
 
 def test_logger_setup():

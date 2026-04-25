@@ -28,6 +28,8 @@ EMBEDDING_MODEL = "BAAI/bge-m3"
 RERANKER_MODEL  = "BAAI/bge-reranker-v2-m3"
 LLM_MODEL       = "gpt-4o"           # geração de respostas
 EVAL_LLM_MODEL  = "gpt-4o-mini"      # juiz RAGAS (avaliação)
+CRITIC_MODEL    = "gpt-4o-mini"      # crítico do loop gen/validation
+VALIDATION_MAX_CYCLES = 1            # max re-tentativas após crítico rejeitar
 
 # ── Chunking ───────────────────────────────────────────────────────────────────
 PARENT_MAX_TOKENS  = 800
