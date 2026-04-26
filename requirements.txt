@@ -34,3 +34,6 @@ tqdm>=4.66.0
 python-dotenv>=1.0.0
 loguru>=0.7.0
 pytest>=8.0.0
+
+# Interface
+streamlit>=1.32.0

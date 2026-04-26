@@ -1,0 +1,34 @@
+# Dados grandes — não entram na imagem
+data/
+qdrant_db/
+*.parquet
+*.sqlite
+*.pdf
+
+# Cache e logs
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+logs/
+results/
+*.log
+
+# Ambiente virtual
+.venv/
+venv/
+env/
+
+# Git
+.git/
+.gitignore
+
+# Segredos
+.env
+
+# Notebooks (não necessários na imagem)
+notebooks/
+
+# Docs
+docs/
+*.md

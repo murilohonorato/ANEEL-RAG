@@ -1,0 +1,18 @@
+services:
+  aneel-rag:
+    build: .
+    container_name: aneel-rag
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./qdrant_db:/app/qdrant_db          # banco vetorial local
+      - huggingface_cache:/root/.cache/huggingface  # modelos cacheados
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - QDRANT_PATH=/app/qdrant_db
+    env_file:
+      - .env
+    restart: unless-stopped
+
+volumes:
+  huggingface_cache:    # modelos baixados uma vez, reutilizados nas próximas execuções

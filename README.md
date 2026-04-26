@@ -1,6 +1,6 @@
 # ANEEL RAG — Sistema de Perguntas sobre Legislação do Setor Elétrico
 
-Sistema de Retrieval-Augmented Generation (RAG) para responder perguntas sobre legislação do setor elétrico brasileiro. Dataset: documentos reais da ANEEL dos anos 2016, 2021 e 2022 (~26.768 documentos, ~228.078 chunks indexados).
+Sistema de Retrieval-Augmented Generation (RAG) para responder perguntas sobre legislação do setor elétrico brasileiro. Dataset: documentos reais da ANEEL dos anos 2016, 2021 e 2022 (~26.768 documentos, ~259.187 chunks indexados).
 
 ---
 
@@ -15,6 +15,35 @@ pergunta → query processing → embedding → hybrid search → RRF → rerank
 ```
 
 Ver `docs/architecture.md` para diagrama completo e `docs/chunking_strategy.md` para detalhes do chunking.
+
+---
+
+## Interface Gráfica (recomendado)
+
+A forma mais simples de usar o sistema é pela interface web:
+
+### Opção 1 — Docker (sem instalar nada)
+
+```bash
+# 1. Obter a pasta qdrant_db/ com o grupo e colocá-la na raiz do projeto
+# 2. Criar o arquivo .env
+echo OPENAI_API_KEY=sk-... > .env
+
+# 3. Subir o container
+docker-compose up --build
+
+# 4. Acessar no navegador
+# http://localhost:8501
+```
+
+> Na primeira execução os modelos (~3GB) são baixados automaticamente e cacheados para as próximas.
+
+### Opção 2 — Local
+
+```bash
+pip install -r requirements.txt
+streamlit run src/app.py
+```
 
 ---
 
@@ -183,6 +212,7 @@ Ver `docs/results.md` para métricas completas. Estimativas:
 
 | Componente | Ferramenta |
 |-----------|-----------|
+| Interface | Streamlit + Docker |
 | Parsing PDF | PyMuPDF + Tesseract OCR |
 | Chunking | Python customizado (document-aware) |
 | Embedding | BAAI/bge-m3 (dense 1024-dim + sparse) |
@@ -209,7 +239,10 @@ ANEEL-RAG/
 │       ├── metadata.parquet     # 26.768 documentos normalizados
 │       ├── chunks.parquet       # 228.078 chunks
 │       └── texts/               # {doc_id}.txt por documento
+├── Dockerfile
+├── docker-compose.yml
 ├── src/
+│   ├── app.py                   # interface Streamlit
 │   ├── config.py                # configurações globais
 │   ├── 01_consolidate_metadata.py
 │   ├── 02_download_pdfs.py      # já executado ✅
