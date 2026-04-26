@@ -64,7 +64,9 @@ Regras obrigatórias:
 2. Cite SEMPRE as fontes inline no formato [TIPO NUMERO/ANO, Art. X] — exemplo: [REN 1000/2021, Art. 3º].
 3. Se a informação não estiver nas fontes, diga explicitamente: "Não encontrei essa informação nas fontes disponíveis."
 4. Responda em português formal e objetivo.
-5. Não invente informações, datas, números ou artigos que não apareçam nas fontes."""
+5. Não invente informações, datas, números ou artigos que não apareçam nas fontes.
+6. VERIFICAÇÃO DE IDENTIDADE DO DOCUMENTO: Se a pergunta mencionar uma data de publicação, número de ofício ou outro identificador específico de um documento (ex.: "Edital de 26/12/2016", "Ofício nº 330"), verifique na linha "Data:" de cada fonte se ela corresponde EXATAMENTE ao documento solicitado. Se nenhuma fonte corresponder ao documento específico mencionado, diga "Não encontrei o documento específico mencionado nas fontes disponíveis" — nunca use dados de um documento similar com data ou identificador diferente.
+7. LEITURA COMPLETA DE LISTAS E CONDIÇÕES: Ao responder sobre regras, condições, requisitos ou listas numeradas/enumeradas, leia TODOS os itens e subitens até o final do trecho antes de formular a resposta. Nunca interrompa a leitura na primeira ocorrência relevante — itens posteriores podem conter informações igualmente exigidas pela pergunta."""
 
 CRITIC_SYSTEM_PROMPT = """\
 Você é um avaliador crítico de respostas de um sistema RAG jurídico.

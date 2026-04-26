@@ -31,16 +31,16 @@ from src.utils.logger import logger
 # ── Perguntas de teste ────────────────────────────────────────────────────────
 
 QUESTIONS = [
-    "Quais são as empresas e pessoas físicas que compõem o chamado 'Grupo Getop', titular do registro da PCH São Carlos?",
-    "De acordo com o projeto básico da PCH São Carlos, qual é a configuração detalhada proposta para as turbinas e os geradores (incluindo as potências) distribuídos entre a casa de força principal e a casa de força adicional?",
-    "Quais são as obrigações de divulgação que a empresa Parque Eólico Diamante III S.A. deve cumprir na primeira página de seu Prospecto e Anúncio ao realizar a emissão pública de debêntures?",
-    "Em quais situações específicas a ANEEL deve informar ao Ministério de Minas e Energia e à Receita Federal sobre indícios de não implantação do projeto EOL Diamante III?",
-    "Em qual rio e estado está localizada a PCH COR 125, e qual é a sua potência instalada aprovada no Sumário Executivo?",
-    "O Despacho № 3.399/2016 estipula uma condição temporal que leva à perda de vigência automática do registro da PCH COR 125. Qual é essa condição e o prazo determinado?",
-    "Qual é o principal motivo legal para a expedição do Edital de Notificação pela SAF/ANEEL, e quais foram as três empresas notificadas por estarem em lugar incerto e não sabido?",
-    "O que ocorrerá com as empresas notificadas caso não efetuem o recolhimento do encargo financeiro da TFSEE no prazo de até 75 dias após a publicação do edital?",
-    "Qual é o prazo exato concedido à Agrícola Sete Campos Ltda. para elaborar o projeto básico e apresentar o Sumário Executivo referente à PCH Eixo 1 na ANEEL?",
-    "Qual foi o efeito da decisão judicial oriunda do Mandado de Segurança nº 1002296-21.2025.4.01.3400 sobre o Despacho que conferiu o registro de intenção à outorga para a PCH Eixo 1?",
+    "Qual é a capacidade instalada da unidade geradora UG1 liberada para operação em teste na EOL Vila Espírito Santo IV e a partir de qual data essa operação foi autorizada?",
+    "Qual é o município, o estado e a razão social da empresa titular da EOL Vila Espírito Santo IV (antiga Potiguar B24), conforme o Despacho Nº 4.194/2021?",
+    "De acordo com a tabela de 'Características do Projeto' da Portaria N° 264/2016, qual é a capacidade instalada total e o número de unidades geradoras que compõem a EOL Diamante III?",
+    "Qual é o CNPJ e a Razão Social da 'Pessoa Jurídica Controladora' listada na tabela do projeto da EOL Diamante III (Portaria N° 264/2016)?",
+    "Segundo a Tabela 1 do Despacho № 3.399/2016, quais são os nomes exatos de todas as pessoas físicas e da pessoa jurídica que propuseram o Projeto Básico da PCH COR 125?",
+    "O Despacho № 3.399/2016 (PCH COR 125) condiciona a homologação dos parâmetros de Garantia Física à apresentação de quais documentos específicos à ANEEL?",
+    "Com base na tabela de inadimplência do Edital de Notificação de 26/12/2016, qual é o valor exato (em R$) cobrado da 'Ribeirão Energia Ltda.' e qual é o número do Ofício (SAF/ANEEL) emitido para ela?",
+    "De acordo com as instruções textuais do Edital de Notificação da TFSEE (2016), quais são os dois telefones e o e-mail disponibilizados para contato caso o pagamento do encargo já tenha sido processado?",
+    "Conforme a tabela de características técnicas contida no Despacho № 3.407/2016, quais são as coordenadas geográficas exatas do eixo do barramento e qual é a área do reservatório da PCH Eixo 1?",
+    "O Despacho № 3.407/2016 (PCH Eixo 1) estabelece uma regra sobre o registro de intenção à outorga (DRI-PCH) antes da entrega do Sumário Executivo. O que o texto define sobre a titularidade do DRI-PCH e sobre novas solicitações para o mesmo aproveitamento?",
 ]
 
 
